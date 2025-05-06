@@ -15,6 +15,7 @@ package smt
 
 @[default_target]
 lean_lib Smt
+lean_lib Paxos
 
 open Std
 open System
