@@ -1,9 +1,7 @@
 import Paxos.Spec
 import Paxos.Prop
 import Paxos.ExtraLemma
-import Smt
-
-set_option auto.native true
+--import Smt
 
 open Paxos.Spec Paxos.Prop Paxos.ExtraLemma
 

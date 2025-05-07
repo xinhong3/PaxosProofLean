@@ -10,3 +10,9 @@ Therefore to prove SafeAtStable for Phase2b, we do need WontVoteIn.
 0506: 
 
 Justification with If-than-else, split_ifs could be used. Otherwise, we could manually define the hypothesis, and use `rw [if_pos h_pos] at hcase`.
+
+A lot of repetition in SafeAtStable, especially with intro and unfold, not sure how to use smt for this at the moment. It's giving out errors:
+
+"incorrect number of universe levels Set"
+
+There's no resource online for this issue

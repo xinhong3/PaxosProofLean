@@ -1,8 +1,4 @@
 import Paxos.Spec
-import Smt
-import Smt.Auto
-
-set_option auto.native true
 
 namespace Paxos.Prop
 open Paxos.Spec

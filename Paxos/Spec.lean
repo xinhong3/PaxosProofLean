@@ -1,5 +1,4 @@
 import Mathlib.Tactic
-import Smt
 
 namespace Paxos.Spec
 open Set
