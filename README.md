@@ -1,76 +1,44 @@
-# Lean-SMT
+# Proof of Basic Paxos in Lean 4
 
-This project provides Lean tactics to discharge goals into SMT solvers.
-It is under active development and is currently in a beta phase. While it is
-usable, it is important to note that there are still some rough edges and
-ongoing improvements being made.
+A mechanically-checked proof of the Basic Paxos consensus algorithm in Lean 4, translated from the TLA+ version:
 
-## Supported Theories
-`lean-smt` currently supports the theories of Uninterpreted Functions and Linear
-Integer/Real Arithmetic with quantifiers. Mathlib is required for Real
-Arithmetic. Support for the theory of Bitvectors is at an experimental stage.
-Support for additional theories is in progress.
+> Chand, S. and Liu, Y. A. (2018).  
+> **Simpler Specifications and Easier Proofs of Distributed Algorithms Using History Variables**  
+> _arXiv preprint_ arXiv:1802.09687.  
+> ↗︎ [https://arxiv.org/pdf/1802.09687](https://arxiv.org/pdf/1802.09687)
 
-## Requirements
-`lean-smt` depends on [`lean-cvc5`](https://github.com/abdoo8080/lean-cvc5),
-which currently only supports Linux and macOS.
+## Overview
 
-## Setup
-To use `lean-smt` in your project, add the following lines to your list of
-dependencies in `lakefile.toml`:
-```toml
-[[require]]
-name = "smt"
-scope = "ufmg-smite"
-rev = "main"
+This repository contains:
+
+- A port of the Paxos proof from Chand & Liu’s history-variable approach into Lean 4.  
+- A (partial) fork of [Lean-SMT](https://github.com/ufmg-smite/lean-smt)@1df3f3 for potential SMT-powered simplifications -- forking resolve the build failure from starting from a new lean project and adding Smt as a dependency. However, I still couldn't get Smt to work with the proof so it's not being used in the project currently.
+
+---
+
+## Project Layout
+
 ```
-If your build configuration is in `lakefile.lean`, add the following line to
-your dependencies:
-```lean
-require smt from git "https://github.com/ufmg-smite/lean-smt.git" @ "main"
+.
+├── Paxos/                 
+│   ├── Spec.lean          ← Protocol specs (Phase1a, Phase1b, Phase2a, Phase2b & Next)
+│   ├── Prop.lean          ← Predicate definitions
+│   ├── ExtraLemmas.lean   ← Helper lemmas (not in the paper) for easing the proof
+│   └── Proof.lean         ← Main safety‐property proof
+├── lakefile.lean          ← Lake build configuration
+└── README.md              ← Project overview
 ```
 
-## Usage
-`lean-smt` comes with one main tactic, `smt`, that translates the current goal
-into an SMT query, sends the query to cvc5, and (if the solver returns `unsat`)
-replays cvc5's proof in Lean. cvc5's proofs may contain holes, returned as Lean
-goals. You can fill these holes manually or with other tactics. To use the `smt`
-tactic, you just need to import the `Smt` library:
-```lean
-import Smt
+## Prerequisites
 
-example [Nonempty U] {f : U → U → U} {a b c d : U}
-  (h0 : a = b) (h1 : c = d) (h2 : p1 ∧ True) (h3 : (¬ p1) ∨ (p2 ∧ p3))
-  (h4 : (¬ p3) ∨ (¬ (f a c = f b d))) : False := by
-  smt [h0, h1, h2, h3, h4]
-```
-To use the `smt` tactic on Real arithmetic goals, import `Smt.Real`:
-```lean
-import Smt
-import Smt.Real
+- Lean 4 (compatible with Mathlib4), recommended setup is to use VSCode. [Here](https://leanprover-community.github.io/get_started.html) is the official instuction.
+- A working `lake` setup for building your Lean projects.
 
-example (ε : Real) (h1 : ε > 0) : ε / 2 + ε / 3 + ε / 7 < ε := by
-  smt [h1]
-```
-`lean-smt` integrates with
-[`lean-auto`](https://github.com/leanprover-community/lean-auto) to provide
-basic hammer-like capabilities. To set the `smt` tactic as a backend for `auto`,
-import `Smt.Auto` and set `auto.native` to `true`:
-```lean
-import Mathlib.Algebra.Group.Defs
-import Smt
-import Smt.Auto
+---
 
-set_option auto.native true
+## Building
 
-variable [Group G]
-
-theorem inverse : ∀ (a : G), a * a⁻¹ = 1 := by
-  auto [mul_assoc, one_mul, inv_mul_cancel]
-
-theorem identity : ∀ (a : G), a * 1 = a := by
-  auto [mul_assoc, one_mul, inv_mul_cancel, inverse]
-
-theorem unique_identity : ∀ (e : G), (∀ a, e * a = a) ↔ e = 1 := by
-  auto [mul_assoc, one_mul, inv_mul_cancel]
+```bash
+lake update
+lake build
 ```
