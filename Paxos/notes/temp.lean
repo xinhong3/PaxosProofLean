@@ -1,32 +1,4 @@
-import Mathlib.Tactic
-import Smt
-import Paxos.Def
 
-section Paxos
-open Set
-open Classical
-open Paxos.Def.TypeDef
-
-/-  Line 16 - 18
-ASSUME QuorumAssumption ==
-          /\ Quorums \subseteq SUBSET Acceptors
-          /\ \A Q1, Q2 \in Quorums : Q1 \cap Q2 # {}
--/
-variable (Quorums: Set (Set Acceptor)) -- Quorums is a set of sets of acceptors
-axiom QuorumAssumption {Q₁: Set Acceptor} {Q₂: Set Acceptor} (h1: Q₁ ∈ Quorums) (h2: Q₂ ∈ Quorums): Q₁ ∩ Q₂ ≠ ∅
-
-/- Line 22 - 24
-VARIABLES sent
-
-vars == <<sent>>
--/
-variable (sent sent': Set Message) -- sent' is added here to model the next state
-
-/- Line 26
-Send(m) == sent' = sent \cup {m}
--/
-@[simp]
-def Send (m : Message) (sent : Set Message) := sent ∪ {m}
 
 -- The following lemma simply says that we can pick a acceptor from the intersection
 @[simp]
@@ -38,21 +10,6 @@ lemma pick_from_quorum_int {Q₁: Set Acceptor} {Q₂: Set Acceptor} (h1: Q₁ �
 @[simp]
 lemma send_monotonic {sent sent': Set Message} {x: Message} (h: sent' = Send x sent) : sent ⊆ sent' := by
   unfold Send at h; intro X hX; rw [h]; exact mem_union_left {x} hX
-
-/-
-Phase 1a: A 1a message with ballot b is sent by some proposer (to all processes).
-Phase1a(b) == Send([type |-> "1a", bal |-> b])
--/
-@[simp]
-def Phase1a (b : Ballot) (sent sent': Set Message) : Prop :=
-  sent' = Send (Message.onea b) sent
-
-def max_prop (sent: Set Message) (a : Acceptor): Set Message :=
-  let twobs := {m ∈ sent | ∃ b v, m = Message.twob b v a}
-  if twobs ≠ ∅ then
-    { m₁ ∈ twobs | ∀m₂ ∈ twobs, ∃ b₁ b₂ v₁ v₂,
-      m₁ = Message.twob b₁ v₁ a ∧ m₂ = Message.twob b₂ v₂ a ∧ b₁ ≥ b₂}
-  else {Message.twob (-1) none a}
 
 @[simp]
 theorem mem_max_prop_is_twob {m : Message} {a : Acceptor}:
@@ -67,54 +24,6 @@ theorem mem_max_prop_is_twob {m : Message} {a : Acceptor}:
     simp only [Set.mem_setOf, exists_prop, and_assoc] at h_mem
     rcases h_mem with ⟨_h_sent, ⟨b, v, rfl⟩, _⟩
     exact ⟨b, v, rfl⟩
-
-/- Phase 1b: For an acceptor a, if there is a 1a message m with ballot m.bal that is higher than the highest it
-has seen, a sends a 1b message with m.bal alongwith the highest-numbered pair it has voted for.
-
-Phase1b(a) , ∃ m ∈ sent, r ∈ max prop(a) :
-∧ m.type = “1a”
-∧ ∀ m2 ∈ sent : m2.type ∈ {“1b”, “2b”} ∧ m2.acc = a ⇒ m.bal > m2.bal
-∧ Send([type 7→ “1b”, bal 7→ m.bal, maxVBal 7→ r .bal, maxVal 7→ r .val, acc 7→ a])
--/
-def Phase1b (a : Acceptor) (sent sent': Set Message) : Prop :=
-  ∃ m ∈ sent, ∃r ∈ max_prop sent a,
-    match m, r with
-    | Message.onea b, Message.twob rbal v _ => -- Notice that rbal might be -1 and v could be none
-       (∀m2 ∈ sent, match m2 with
-       | Message.oneb b2 _ _ a' => (a' = a) → (b > b2)
-       | Message.twob b2 _ a' => (a' = a) → (b > b2)
-       | _ => True)
-       → sent' = Send (Message.oneb b rbal v a) sent
-    | _, _ => False
-
-
-def Phase2a (b : Ballot) (sent sent' : Set Message) : Prop :=
-  (¬ ∃ m ∈ sent, match m with | Message.twoa b' _ => b' = b | _ => false)
-  ∧ (∃v: Value, ∃Q ∈ Quorums, ∃S, S ⊆ { m ∈ sent | match m with | Message.oneb b' _ _ _ => b' = b | _ => false}
-      ∧ (∀ a ∈ Q, ∃ m ∈ S, match m with| Message.oneb _ _ _ a' => a' = a | _ => false)
-      ∧ (∀ m ∈ S, match m with| Message.oneb _ maxVBal _ _ => maxVBal = -1 | _ => True)
-            ∨ (∃c: Ballot, (c ≥ 0 ∧ c ≤ b - 1)
-               ∧  (∀ m ∈ S, match m with | Message.oneb _ maxVBal _ _ => maxVBal ≤ c | _ => True)
-               ∧  (∃ m ∈ S, match m with | Message.oneb _ maxVBal maxVal _ => maxVBal = c ∧ maxVal = v | _ => False))
-      ↔ sent' = Send (Message.twoa b v) sent)
-
-def Phase2b (a : Acceptor) (sent sent' : Set Message) : Prop :=
-  ∃ m ∈ sent, match m with
-    | Message.twoa b v =>
-      (∀ m₂ ∈ sent,
-         match m₂ with
-         | Message.oneb b₂ _ _ a' => a' = a → b ≥ b₂
-         | Message.twob b₂ _ a' => a' = a → b ≥ b₂
-         | _ => True)
-      → sent' = Send (Message.twob b v a) sent
-    | _ => False
-
-def Init (sent: Set Message): Prop := sent = ∅
-def Next : Prop :=
-   (∃b, Phase1a b sent sent')
- ∨ (∃a, Phase1b a sent sent')
- ∨ (∃b, Phase2a Quorums b sent sent')
- ∨ (∃a, Phase2b a sent sent')
 
 lemma next_imp_mono_sent (hNext: Next Quorums sent sent') : sent ⊆ sent' := by
   unfold Next at hNext

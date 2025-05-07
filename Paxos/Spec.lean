@@ -78,7 +78,8 @@ def Phase1b (a : Acceptor) : Prop :=
        if (∀m2 ∈ sent, match m2 with
        | Message.oneb b2 _ _ a' => (a' = a) → (b > b2)
        | Message.twob b2 _ a' => (a' = a) → (b > b2)
-       | _ => True) then sent' = Send (Message.oneb b rbal rval a) sent
+       | _ => True)
+       then sent' = Send (Message.oneb b rbal rval a) sent
        else sent' = sent
     | _, _ => False
 

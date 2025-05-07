@@ -5,3 +5,8 @@ To prove this we acutally need the whole definition of WontVoteIn, because not V
 For example, this could happen when the acceptor a is ABOUT to vote for value v and ballot b in Phase2b.
 
 Therefore to prove SafeAtStable for Phase2b, we do need WontVoteIn.
+
+
+0506: 
+
+Justification with If-than-else, split_ifs could be used. Otherwise, we could manually define the hypothesis, and use `rw [if_pos h_pos] at hcase`.
