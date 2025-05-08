@@ -31,13 +31,14 @@ This repository contains:
 
 ## Prerequisites
 
-- Lean 4 (compatible with Mathlib4), recommended setup is to use VSCode. [Here](https://leanprover-community.github.io/get_started.html) is the official instuction.
-- A working `lake` setup for building your Lean projects.
+- Lean 4: recommended setup is to use VSCode. [Here](https://leanprover-community.github.io/get_started.html) is the official instuction. This project is with Lean v4.16.0 (see `./lean-toolchain`), see `lakefile.lean` for dependencies.
+- After setting up Lean with VSCode, `elan --version` should work after restarting shell, if not, make sure to add `~/.elan/bin` to `PATH`.
 
 ---
 
-## Building
+## Building the Project
 
+Paxos.lean is set to be the default build
 ```bash
 lake update
 lake build
