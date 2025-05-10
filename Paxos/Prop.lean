@@ -51,7 +51,7 @@ def MsgInv : Prop :=
         | none => True
         | some v₀ => VotedForIn sent a v₀ maxVBal
       ∧
-      (∀ (b' : Ballot), ((b' ≥ maxVBal + 1) ∧ (b' ≤ b - 1)) → ¬ (∃ v : Value, VotedForIn sent a v b'))
+      (∀ (b' : Ballot), ((maxVBal + 1 ≤ b') ∧ (b' ≤ b - 1)) → ¬ (∃ v : Value, VotedForIn sent a v b'))
     | Message.twoa b v => (SafeAt sent Quorums v b)
                           ∧ (∀ m2 ∈ sent,
                                 match m2 with

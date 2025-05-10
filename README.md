@@ -38,8 +38,14 @@ This repository contains:
 
 ## Building the Project
 
-Paxos.lean is set to be the default build
+Paxos.lean is set to be the default build (see `lakefile.lean`), by running
+
 ```bash
-lake update
 lake build
+```
+
+It will build `./Paxos.lean` which imports the Spec, Lemmas and Proof from `./Paxos`. By default, lean will give a warning if there's `sorry` in the proof:
+
+```
+warning: ././././Paxos/Proof.lean:164:8: declaration uses 'sorry'
 ```
