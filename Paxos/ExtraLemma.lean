@@ -40,6 +40,21 @@ theorem mem_max_prop_is_twob {m : Message} {a : Acceptor}:
     rcases h_mem with ⟨_h_sent, ⟨b, v, rfl⟩, _⟩
     exact ⟨b, v, rfl⟩
 
+/-- This lemma states that if we have a non-empty message from `max_prop`, then it must be a previous `twob` vote message.
+-/
+@[simp]
+lemma max_prop_nonempty_imp_votedForIn {a : Acceptor} {v : Value} {b : Ballot} (h: m ∈ max_prop sent a) (h_not_empty: m = Message.twob b (some v) a) : VotedForIn sent a v b := by
+  have hm_sent : m ∈ sent := by
+    unfold max_prop at h
+    dsimp at h
+    split_ifs at h with h_pos
+    · simp [*] at * -- This is contradicting to h_non_empty so we can use simp
+    · rcases h with ⟨h1, h2⟩
+      exact h1.left
+  apply mem_max_prop_is_twob at h
+  unfold VotedForIn at *
+  exact Filter.frequently_principal.mp fun a => a hm_sent h_not_empty
+
 /-- This lemma states that if `sent` is a subset of `sent'`, then `VotedForIn sent a v b` implies
     `VotedForIn sent' a v b`. This is used in the proof of `SafeAtStable`.
 -/
