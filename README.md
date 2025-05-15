@@ -44,7 +44,7 @@ Paxos.lean is set to be the default build (see `lakefile.lean`), by running
 lake build
 ```
 
-It will build `./Paxos.lean` which imports the Spec, Lemmas and Proof from `./Paxos`. By default, lean will give a warning if there's `sorry` in the proof:
+It will build `./Paxos.lean` which imports the Spec, Lemmas and Proof from `./Paxos`. By default, lean will give a warning if there's `sorry` in the proof, or an error if the proof is not completed. The build should take around 20 minutes (On 2021 Macbook Pro, 16GB RAM).
 
 ```
 warning: ././././Paxos/Proof.lean:164:8: declaration uses 'sorry'
