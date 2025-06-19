@@ -93,12 +93,12 @@ def Phase2a (b : Ballot) : Prop :=
                 | Message.twoa b' _ => b' = b
                 | _                 => False)
   then
-    if φ : ∃ (v : Value) (Q : Set Acceptor) (S : Set Message), Q ∈ Quorums ∧ S ⊆ { m ∈ sent | match m with | Message.oneb b' _ _ _ => b' = b | _ => False}
-      ∧ (∀ a ∈ Q, ∃ m ∈ S, match m with | Message.oneb _ _ _ a' => a' = a | _ => False)
-      ∧ ((∀ m ∈ S, match m with | Message.oneb _ maxV _ _ => maxV = -1 | _ => True)
-          ∨ ∃ (c : Ballot), 0 ≤ c ∧ c ≤ b - 1
-              ∧ (∀ m ∈ S, match m with | Message.oneb _ maxV _ _ => maxV ≤ c | _ => True)
-              ∧ (∃ m ∈ S, match m with | Message.oneb _ maxV maxVal _ => maxV = c ∧ maxVal = v | _ => False))
+    if φ : ∃ (v : Value) (Q : Set Acceptor) (S : Set Message), Q ∈ Quorums ∧ S ⊆ { m ∈ sent | match m with | Message.oneb b' _ _ _ => b' = b | _ => False}  -- S is the set of 1b messages with ballot b
+      ∧ (∀ a ∈ Q, ∃ m ∈ S, match m with | Message.oneb _ _ _ a' => a' = a | _ => False)     -- for all acceptors in Q, there is a corresponding 1b message in S.
+      ∧ ((∀ m ∈ S, match m with | Message.oneb _ maxV _ _ => maxV = -1 | _ => True)         -- for all 1b messages, either that maxVal is -1 (no acceptor has voted for anything)
+          ∨ ∃ (c : Ballot), 0 ≤ c ∧ c ≤ b - 1                                               -- or there is a 1b message with ballot c (the 'highest ballot') that is less than b
+              ∧ (∀ m ∈ S, match m with | Message.oneb _ maxV _ _ => maxV ≤ c | _ => True)   -- and for all 1b messages, the maxV is less than or equal to c
+              ∧ (∃ m ∈ S, match m with | Message.oneb _ maxV maxVal _ => maxV = c ∧ maxVal = v | _ => False)) -- and there is a 1b message with ballot c and value v
     then let v := choose φ; sent' = Send (Message.twoa b v) sent
     else
       sent' = sent
