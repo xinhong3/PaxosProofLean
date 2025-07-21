@@ -20,8 +20,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    - name: Build and Test Lean-SMT
+    - name: Build Paxos Proof
       uses: leanprover/lean-action@v1
       with:
-        build-args: "Smt Smt.Auto Smt.Rat Smt.Real"
+        build-args: "Paxos Paxos.Proof"
         use-github-cache: false

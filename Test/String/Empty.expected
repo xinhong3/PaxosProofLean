@@ -1,5 +1,0 @@
-goal: "" = ""
-
-query:
-(assert (distinct "" ""))
-(check-sat)

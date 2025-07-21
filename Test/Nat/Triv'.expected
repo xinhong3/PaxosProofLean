@@ -1,5 +1,0 @@
-goal: 0 + 1 = 1
-
-query:
-(assert (distinct (+ 0 1) 1))
-(check-sat)
