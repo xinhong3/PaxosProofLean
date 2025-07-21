@@ -12,7 +12,7 @@ A mechanically-checked proof of the Basic Paxos consensus algorithm in Lean 4, t
 This repository contains:
 
 - A port of the Paxos proof from Chand & Liu’s history-variable approach into Lean 4.  
-- A (partial) fork of [Lean-SMT](https://github.com/ufmg-smite/lean-smt)@1df3f3 for potential SMT-powered simplifications -- forking resolve the build failure from starting from a new lean project and adding Smt as a dependency. However, I still couldn't get Smt to work with the proof so it's not being used in the project currently.
+- \[**Removed**\] A (partial) fork of [Lean-SMT](https://github.com/ufmg-smite/lean-smt)@1df3f3 for potential SMT-powered simplifications -- forking resolve the build failure from starting from a new lean project and adding Smt as a dependency. However, I still couldn't get Smt to work with the proof so it's not being used in the project currently.
 
 ---
 
@@ -22,9 +22,9 @@ This repository contains:
 .
 ├── Paxos/                 
 │   ├── Spec.lean          ← Protocol specs (Phase1a, Phase1b, Phase2a, Phase2b & Next)
-│   ├── Prop.lean          ← Predicate definitions
-│   ├── ExtraLemmas.lean   ← Helper lemmas (not in the paper) for easing the proof
-│   └── Proof.lean         ← Main safety‐property proof
+│   ├── Prop.lean          ← Invariant (MsgInv) defintion, defintions of other predicates used in the proof.
+│   ├── ExtraLemmas.lean   ← Helper lemmas for easing the proof.
+│   └── Proof.lean         ← Proof for the Safety Property, and inductiveness of invariant.
 ├── lakefile.lean          ← Lake build configuration
 └── README.md              ← Project overview
 ```
@@ -44,7 +44,7 @@ Paxos.lean is set to be the default build (see `lakefile.lean`), by running
 lake build
 ```
 
-It will build `./Paxos.lean` which imports the Spec, Lemmas and Proof from `./Paxos`. By default, lean will give a warning if there's `sorry` in the proof, or an error if the proof is not completed. The build should take around 20 minutes (On 2021 Macbook Pro, 16GB RAM).
+It will build `./Paxos.lean` which imports the Spec, Lemmas and Proof from `./Paxos`. By default, lean will give a warning if there's `sorry` in the proof, or an error if the proof is not completed. The build should be completed in a few minutes (On 2021 Macbook Pro, 16GB RAM).
 
 ```
 warning: ././././Paxos/Proof.lean:164:8: declaration uses 'sorry'
