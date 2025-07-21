@@ -18,6 +18,12 @@ lemma pick_from_quorum_int {Q₁: Set Acceptor} {Q₂: Set Acceptor} (h1: Q₁ �
   rcases ((Iff.mpr nonempty_iff_ne_empty) hne) with ⟨aa, haa⟩ -- nonempty_iff_ne_empty took me some time to find
   exact Exists.intro aa haa
 
+@[simp]
+lemma option.some_succ_le_some_of_some_le_and_lt {n m k : Ballot}
+  (h₁ : some n ≤ some m) (h₂ : m < k) :
+  some (n + 1) ≤ some k := by
+  apply Option.some_le_some.mp at h₁
+  apply le_trans (Nat.succ_le_succ h₁) (Nat.succ_le_iff.mpr h₂)
 
 /-- This is the immediate consequence of the definition of `Send`.
 -/
@@ -25,12 +31,11 @@ lemma pick_from_quorum_int {Q₁: Set Acceptor} {Q₂: Set Acceptor} (h1: Q₁ �
 lemma send_monotonic {sent sent': Set Message} {x: Message} (h: sent' = Send x sent) : sent ⊆ sent' := by
   unfold Send at h; intro X hX; rw [h]; exact mem_union_left {x} hX
 
-
 /-- This lemma states the messages in max_prop are of type `twob`.
 -/
 @[simp]
 theorem mem_max_prop_is_twob {m : Message} {a : Acceptor}:
-  m ∈ max_prop sent a → ∃ (b : Ballot) (v : Option Value), m = Message.twob b v a := by
+  m ∈ max_prop sent a → ∃ (b : Option Ballot) (v : Option Value), m = Message.twob b v a := by
   dsimp [max_prop] at *
   split_ifs with h_nonempty
   · simp only [Set.mem_sep, Set.mem_setOf, exists_prop, and_assoc] at *
@@ -68,12 +73,30 @@ theorem max_prop_implies_not_voted_for_greater_ballots {a: Acceptor} {b : Ballot
     obtain ⟨b', hb'_gt, v', hmem'⟩ := h_neg
     specialize h3 (Message.twob b' (some v') a)
     simp [*] at *
-    exact Lean.Omega.Int.le_lt_asymm h3 hb'_gt
+    exact Nat.le_lt_asymm h3 hb'_gt
   · exfalso
     simp at *
 
+-- Effort: 20 min
+/-- It states that if the message from `max_prop` has empty ballot and value, then the acceptor has not voted in any previous ballots.
+
+Used in proving the case when both `rbal` and `rval` are empty in the proof of `Phase1b`.
+-/
 @[simp]
-theorem oneb_message_maxVal_none_iff_maxVBal_is_minus_one {a : Acceptor} {b maxVBal: Ballot} {maxVal: Option Value} (h: Message.oneb b maxVBal maxVal a ∈ max_prop sent a) : maxVBal = 1 ↔ (maxVal = none) := by sorry
+theorem max_prop_empty_implies_not_voted_in_prev_ballots {a: Acceptor} (hm: Message.twob none none a ∈ max_prop sent a) : ∀ b, ∀ (v: Value), ¬ VotedForIn sent a v b := by
+  intro b' hb'_le h_voted
+  unfold max_prop at hm
+  simp [*] at *
+  let twobs := { m | m ∈ sent ∧ ∃ b v, m = Message.twob b v a }
+  split_ifs at hm with h_nonempty
+  · simp only [Set.mem_sep, Set.mem_setOf, exists_prop, and_assoc] at hm
+    simp at hm
+  · unfold VotedForIn at h_voted
+    obtain ⟨m, hm_sent, hm_two_b⟩ := h_voted
+    rw [not_exists] at h_nonempty
+    specialize h_nonempty m
+    simp [hm_sent, hm_two_b] at h_nonempty
+    simp [*] at *
 
 /-- This lemma states that if `sent` is a subset of `sent'`, then `VotedForIn sent a v b` implies
     `VotedForIn sent' a v b`. This is used in the proof of `SafeAtStable`.
@@ -86,7 +109,39 @@ lemma votedForIn_monotonic {a: Acceptor} {v: Value} {b: Ballot} (h1: sent ⊆ se
   refine (and_iff_right ?h.ha).mpr hmatch
   apply h1; exact hm
 
-/-- This lemmae simply states that `sent` grows monotonically with `Next`.
+@[simp]
+lemma phase1a_imp_mono_sent {b: Ballot} (hPhase1a: Phase1a sent sent' b) : sent ⊆ sent' := by
+  unfold Phase1a at hPhase1a; exact send_monotonic hPhase1a
+
+@[simp]
+lemma phase1b_imp_mono_sent {a: Acceptor} (hPhase1b: Phase1b sent sent' a) : sent ⊆ sent' := by
+  unfold Phase1b at hPhase1b
+  rcases hPhase1b with ⟨m, hm, r, hr, hmatch⟩
+  cases m with
+  | onea mbal =>
+    cases r with
+    | twob rbal rvbal racc =>
+      simp at hmatch
+      split_ifs at hmatch with hpos <;> simp [*] at *
+    | _ => simp at *;
+  | _ => simp at *;
+
+@[simp]
+lemma phase2a_imp_mono_sent {b: Ballot} (hPhase2a: Phase2a Quorums sent sent' b) : sent ⊆ sent' := by
+  unfold Phase2a at hPhase2a
+  split_ifs at hPhase2a with h1 h2 <;> simp [*] at *
+
+@[simp]
+lemma phase2b_imp_mono_sent {a: Acceptor} (hPhase2b: Phase2b sent sent' a) : sent ⊆ sent' := by
+  unfold Phase2b at hPhase2b
+  rcases hPhase2b with ⟨m2b, hm2b, hmatch⟩
+  cases m2b with
+  | twoa mbal mval =>
+    simp at hmatch
+    split_ifs at hmatch with hpos <;> simp [*] at *
+  | _ => simp at hmatch; simp [*] at *;
+
+/-- This lemma simply states that `sent` grows monotonically with `Next`.
     That is, if `sent` is a subset of `sent'`, then `Next` will also be a subset of `sent'`.
     This is used in the proof of `SafeAtStable`.
 -/
@@ -94,30 +149,15 @@ lemma votedForIn_monotonic {a: Acceptor} {v: Value} {b: Ballot} (h1: sent ⊆ se
 lemma next_imp_mono_sent (hNext: Next Quorums sent sent') : sent ⊆ sent' := by
   unfold Next at hNext
   rcases hNext with ⟨b, hPhase1a⟩ | ⟨a, hPhase1b⟩ | ⟨b, hPhase2a⟩ | ⟨a, hPhase2b⟩
-  · unfold Phase1a at hPhase1a; exact send_monotonic hPhase1a
-  · unfold Phase1b at hPhase1b
-    rcases hPhase1b with ⟨m, hm, r, hr, hmatch⟩
-    cases m with
-    | onea mbal =>
-      cases r with
-        | twob rbal rvbal racc =>
-          simp at hmatch
-          split_ifs at hmatch with hpos <;> simp [*] at *
-        | _ => simp at *;
-    | _ => simp at *;
-  · unfold Phase2a at hPhase2a
-    split_ifs at hPhase2a with h1 h2 <;> simp [*] at *
-  · unfold Phase2b at hPhase2b
-    rcases hPhase2b with ⟨m2b, hm2b, hmatch⟩
-    cases m2b with
-    | twoa mbal mval =>
-      simp at hmatch
-      split_ifs at hmatch with hpos <;> simp [*] at *
-    | _ => simp at hmatch; simp [*] at *;
+  · exact phase1a_imp_mono_sent sent sent' hPhase1a
+  · exact phase1b_imp_mono_sent sent sent' hPhase1b
+  · exact phase2a_imp_mono_sent Quorums sent sent' hPhase2a
+  · exact phase2b_imp_mono_sent sent sent' hPhase2b
 
 /--
   This is the immediate consequence of the definition of VotedForIn. If no 2b message is added to `sent`, then the value predicate `¬VotedForIn` is preserved.
 -/
+@[simp]
 lemma send_add_non_twob_preserves_no_vote {a: Acceptor} {b: Ballot} {m: Message} (hnv : ∀ v, ¬ VotedForIn sent a v b) (hsend : sent' = Send m sent) (hm : (∃ bal, m = Message.onea bal) ∨ (∃ bal maxV maxVal a', m = Message.oneb bal maxV maxVal a') ∨ (∃ bal val, m = Message.twoa bal val)) : ∀ v, ¬ VotedForIn sent' a v b := by
   intro v hVoted
   cases hm with
