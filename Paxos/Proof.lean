@@ -754,6 +754,10 @@ lemma ind_phase2b {a: Acceptor} (hInv: MsgInv sent Quorums) (h2b: Phase2b sent s
     · simp [*] at *
   | _ => simp [*] at *
 
+theorem init_imp_inv (hInit: Init sent) : MsgInv sent Quorums := by
+  unfold Init MsgInv at *
+  simp [hInit]
+
 theorem Inductiveness (hInv: MsgInv sent Quorums) (hNext: Next Quorums sent sent') : MsgInv sent' Quorums := by
   unfold Next at hNext
   rcases hNext with ⟨b', h1a⟩ | ⟨a', h1b⟩ | ⟨b', h2a⟩ | ⟨a', h2b⟩
