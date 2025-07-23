@@ -58,6 +58,26 @@ theorem max_prop_not_empty_implies_voted_for {a : Acceptor} {b: Ballot} {v: Valu
   · exfalso
     simp at *
 
+-- Effort: 20 min
+/-- This lemma states that either one of ballot or value is empty, then the other one must also be empty
+
+This is used in later proof when we need to do
+
+`match rbal, rval with
+| some rbal, none | none, some rval => `
+
+and derives a contradiction because it can't be the case.
+-/
+@[simp]
+lemma max_prop_empty_ballot_iff_empty_value {a : Acceptor} {m : Message}
+  (hm : m ∈ max_prop sent a) :
+  (∃ b, m = Message.twob (some b) none a) ↔ ∃ v, m = Message.twob none (some v) a := by
+  dsimp [max_prop] at hm
+  let twobs := { m | m ∈ sent ∧ ∃ b v, m = Message.twob (some b) (some v) a }
+  split_ifs at hm with h_nonempty
+  · simp at hm; simp [hm];
+  · simp [*] at hm; have h_m_twob := hm.left.right; rcases h_m_twob with ⟨b, v, rfl⟩; simp;
+
 @[simp]
 theorem max_prop_implies_not_voted_for_greater_ballots {a: Acceptor} {b : Ballot} {v: Value} : Message.twob b (some v) a ∈ max_prop sent a → ∀ b' v', b' > b → ¬ VotedForIn sent a v' b' := by
   intro h_mem

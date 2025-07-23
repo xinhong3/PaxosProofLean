@@ -10,42 +10,11 @@ abbrev Value := String      -- Value
 abbrev Ballot := Nat        -- Ballot is defined to be Nat. We model the empty ballot (defined as -1 in the TLA proof) as none (Option Ballot).
 
 -- Define +, < between Ballot and Option Ballot --
-instance : HAdd (Option Ballot) Ballot (Option Ballot) where
+instance : HAdd (Option Ballot) Nat (Option Ballot) where
   hAdd
-    | none,    0      => none         -- -1 + 0     = -1
-    | none,    Nat.succ k => k        -- 0  + (k+1) = k
-    | some a,  b      => a + b        -- a  +  b    = a + b
-
-instance : HAdd (Option Ballot) Nat (Option Ballot) where       -- TODO: can this be removed?
-  hAdd
-    | none,    0      => none         -- -1 + 0     = -1
-    | none,    Nat.succ k => k        -- 0  + (k+1) = k
-    | some a,  b      => a + b        -- a  +  b    = a + b
-
-instance : LE (Option Ballot) where
-  le
-    | none,    _        => True
-    | some _,  none     => False
-    | some a,  some b   => a ≤ b
-
-@[instance]
-instance : LT (Option Ballot) where
-  lt
-    | none,    _        => True
-    | some _,  none     => False
-    | some a,  some b   => a < b
-
-instance decidableLeOption {x y : Option Ballot} : Decidable (x ≤ y) :=
-  match x, y with
-  | none,    _        => isTrue (by trivial)
-  | some _,  none     => isFalse (by exact fun a ↦ a)
-  | some a,  some b   => inferInstance
-
-instance decidableLtOption {x y : Option Ballot} : Decidable (x < y) :=
-  match x, y with
-  | none,    _        => isTrue (by trivial)
-  | some _,  none     => isFalse (by exact fun a ↦ a)
-  | some a,  some b   => inferInstance
+    | none,    0          => none         -- -1 + 0     = -1
+    | none,    Nat.succ k => k            -- 0  + (k+1) = k
+    | some a,  b          => a + b        -- a  +  b    = a + b
 
 -- Examples of using the defined operations on Ballot and Option Ballot
 -- #eval (none: Option Ballot) + (1: Ballot)
@@ -70,6 +39,7 @@ inductive Message where
 | oneb  (bal : Ballot) (maxVBal : Option Ballot) (maxVal : Option Value) (acc : Acceptor) : Message --  Define both Ballot and Value to be Option type, corresponds to not voted.
 | twoa  (bal : Ballot) (val : Value) : Message
 | twob  (bal : Option Ballot) (val : Option Value) (acc : Acceptor) : Message                       -- val is of Option becuase last_voted defintion
+deriving DecidableEq
 
 /-  Line 16 - 18
 ASSUME QuorumAssumption ==
@@ -114,26 +84,6 @@ def max_prop (a : Acceptor): Set Message :=
     { m₁ ∈ twobs | ∀m₂ ∈ twobs, ∃ (b₁ b₂: Ballot) (v₁ v₂: Value),                     -- Same as above
       m₁ = Message.twob b₁ v₁ a ∧ m₂ = Message.twob b₂ v₂ a ∧ b₁ ≥ b₂}
   else {Message.twob none none a}                                                     -- For -1 ballot, we use `none`. At the same time, returning `none` as the value.
-
--- Effort: 20 min
-/-- This lemma states that either one of ballot or value is empty, then the other one must also be empty
-
-This is used in later proof when we need to do
-
-`match rbal, rval with
-| some rbal, none | none, some rval => `
-
-and derives a contradiction because it can't be the case.
--/
-@[simp]
-lemma max_prop_empty_ballot_iff_empty_value {a : Acceptor} {m : Message}
-  (hm : m ∈ max_prop sent a) :
-  (∃ b, m = Message.twob (some b) none a) ↔ ∃ v, m = Message.twob none (some v) a := by
-  dsimp [max_prop] at hm
-  let twobs := { m | m ∈ sent ∧ ∃ b v, m = Message.twob (some b) (some v) a }
-  split_ifs at hm with h_nonempty
-  · simp at hm; simp [hm];
-  · simp [*] at hm; have h_m_twob := hm.left.right; rcases h_m_twob with ⟨b, v, rfl⟩; simp;
 
 /-- Phase 1b: For an acceptor a, if there is a 1a message m with ballot m.bal that is higher than the highest it
 has seen, a sends a 1b message with m.bal alongwith the highest-numbered pair it has voted for.
