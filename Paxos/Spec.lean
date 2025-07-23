@@ -39,7 +39,7 @@ inductive Message where
 | oneb  (bal : Ballot) (maxVBal : Option Ballot) (maxVal : Option Value) (acc : Acceptor) : Message --  Define both Ballot and Value to be Option type, corresponds to not voted.
 | twoa  (bal : Ballot) (val : Value) : Message
 | twob  (bal : Option Ballot) (val : Option Value) (acc : Acceptor) : Message                       -- val is of Option becuase last_voted defintion
-deriving DecidableEq
+deriving DecidableEq, Repr
 
 /-  Line 16 - 18
 ASSUME QuorumAssumption ==
@@ -151,5 +151,15 @@ def Next : Prop :=
  ∨ (∃a, Phase1b sent sent' a)
  ∨ (∃b, Phase2a Quorums sent sent' b)
  ∨ (∃a, Phase2b sent sent' a)
+
+/--
+The Specification of Paxos. `σ` represents the trace of the system, which is mapping between `ℕ` and `Set Message`.
+
+The initial state is `Init (σ 0)`, and the next state is defined by `Next Quorums (σ i) (σ (i+1))` for all `i`. The disjunction allows for the stuttering step.
+
+This is Spec == Init /\ [][Next]_vars. Naming it PaxosSpec to avoid confusion with the `Spec` namespace.
+-/
+def PaxosSpec (σ : ℕ → Set Message) : Prop :=
+  Init (σ 0) ∧ (∀ i, Next Quorums (σ i) (σ (i+1)) ∨ (σ i) = (σ (i+1)))
 
 end Paxos.Spec

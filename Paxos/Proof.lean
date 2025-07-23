@@ -191,7 +191,7 @@ theorem SafeAtStable (hNext : Next Quorums sent sent')
   · exact SafeAtStable_Phase2a sent sent' Quorums h2a hSafe
   · exact SafeAtStable_Phase2b sent sent' Quorums h2b hSafe
 
-theorem Consistent (hInv : MsgInv sent Quorums) : Consistency sent Quorums := by
+theorem MsgInv_implies_Consistency (hInv : MsgInv sent Quorums) : Consistency sent Quorums := by
   unfold Consistency
   rintro v1 v2 ⟨⟨b1, hChosenIn1⟩, ⟨b2, hChosenIn2⟩⟩
   -- We prove the following symmetrical result for it to be used later in the proof
@@ -754,10 +754,6 @@ lemma ind_phase2b {a: Acceptor} (hInv: MsgInv sent Quorums) (h2b: Phase2b sent s
     · simp [*] at *
   | _ => simp [*] at *
 
-theorem init_imp_inv (hInit: Init sent) : MsgInv sent Quorums := by
-  unfold Init MsgInv at *
-  simp [hInit]
-
 theorem Inductiveness (hInv: MsgInv sent Quorums) (hNext: Next Quorums sent sent') : MsgInv sent' Quorums := by
   unfold Next at hNext
   rcases hNext with ⟨b', h1a⟩ | ⟨a', h1b⟩ | ⟨b', h2a⟩ | ⟨a', h2b⟩
@@ -765,3 +761,24 @@ theorem Inductiveness (hInv: MsgInv sent Quorums) (hNext: Next Quorums sent sent
   · exact ind_phase1b sent sent' Quorums hInv h1b
   · exact ind_phase2a sent sent' Quorums hInv h2a
   · exact ind_phase2b sent sent' Quorums hInv h2b
+
+-- THEOREM Consistent == Spec => []Consistency in TLAPS
+theorem Consistent (σ : ℕ → Set Message) (hSpec : PaxosSpec Quorums σ) : ∀ n, Consistency (σ n) Quorums := by
+  have inv : ∀ n, MsgInv (σ n) Quorums := by
+    intro n
+    induction n with
+    | zero   =>
+      unfold PaxosSpec Init at hSpec;
+      simp [MsgInv, hSpec.1]
+    | succ k ih =>
+      let sent := σ k; let sent' := σ (k + 1)
+      unfold PaxosSpec at hSpec
+      have hStep := hSpec.2 k
+      cases hStep with
+      | inl hNext =>
+        have hInvHoldsPrev: MsgInv sent Quorums := ih
+        exact Inductiveness (σ k) (σ (k + 1)) Quorums ih hNext
+      | inr hStutter =>
+        simp [hStutter] at ih; exact ih;
+  intro n
+  exact MsgInv_implies_Consistency (σ n) Quorums (inv n)
