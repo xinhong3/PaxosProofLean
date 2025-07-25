@@ -69,7 +69,7 @@ lemma SafeAtStable_Phase1b {a: Acceptor} {b: Ballot} {v: Value} (h1b: Phase1b se
       | onea b1 =>
         cases r with
         | twob rbal rval a1 =>
-          simp only [if_pos] at hmatch
+          simp [-Send] at hmatch
           split_ifs at hmatch with hpos
           · refine send_add_non_twob_preserves_no_vote sent sent' hWont.left hmatch ?_
             refine Or.inr ?_; refine Or.inl ?_
@@ -438,10 +438,9 @@ lemma ind_phase2a {b: Ballot} (hInv: MsgInv sent Quorums) (h2a: Phase2a Quorums 
                 have h_target := hInv
                 specialize h_target m1 h_m1_in_sent
                 simp [m1] at h_target
-                simp [h_none_voted] at hInv
                 have h_target := h_target.right
                 specialize h_target b2
-                simp [h_none_voted, h_b2_less_than_b, Nat.le_sub_one_of_lt, bal1_eq, hm1_match] at h_target; exact h_target
+                simp [h_none_voted, h_b2_less_than_b, bal1_eq, hm1_match] at h_target; exact h_target
               | _ => simp at hm1_match;
             · cases m1 with
               | oneb bal1 maxVBal1 maxVal1 acc1 =>
@@ -455,8 +454,6 @@ lemma ind_phase2a {b: Ballot} (hInv: MsgInv sent Quorums) (h2a: Phase2a Quorums 
               | _ => simp at hm1_match;
           · unfold SafeAt
             intro b2 h_b2_less_than_b
-            -- use Q; simp [h_Q_in_quorums]
-            -- intro a haQ       -- proving a disjunction VotedForIn sent a v b2 ∨ WontVoteIn sent a b2
             obtain ⟨c, h_c_greater_than_zero, h_c_less_than_b, ⟨h_all_messgae_in_S_less_than_c, h_some_message_in_S_equals_C⟩⟩ := h_some_voted
             by_cases h_b2_less_than_c : b2 < c
             · obtain ⟨m_with_ballot_c, h_m_c_in_S, h_m_c_match⟩ := h_some_message_in_S_equals_C
@@ -478,7 +475,7 @@ lemma ind_phase2a {b: Ballot} (hInv: MsgInv sent Quorums) (h2a: Phase2a Quorums 
                   unfold SafeAt at h_safe_at_c
                   rw [h_m_c_match.left, h_m_c_match.right] at h_safe_at_c
                   specialize h_safe_at_c b2 h_b2_less_than_c
-                  simp [h_m_c_match, h_safe_at_c, v]
+                  simp [h_safe_at_c, v]
                 | none, some mc_val => simp at h_m_c_match;
                 | some mc_vbal, none => simp at h_m_c_match;
                 | none, none => simp at h_m_c_match;
@@ -495,7 +492,7 @@ lemma ind_phase2a {b: Ballot} (hInv: MsgInv sent Quorums) (h2a: Phase2a Quorums 
                       exact h_m_c_match.left
                     have h_mc_val_eq_v : mc_val = v := by
                       simp at h_m_c_match
-                      simp [h_m_c_match.right, v, h2a, h_no_prev_2a_msg]
+                      simp [h_m_c_match.right, v]
                    -- Obtain the following from the MsgInv for 1b message
                     have h_voted_acc_c : VotedForIn sent mc_acc mc_val mc_vbal := by
                       have ⟨mc_in_sent, _⟩ := h_S_set_of_oneb h_m_c_in_S
@@ -550,7 +547,7 @@ lemma ind_phase2a {b: Ballot} (hInv: MsgInv sent Quorums) (h2a: Phase2a Quorums 
                       simp at hInv
                       rw [hm1_match.left, hm1_match.right] at hInv
                       simp at hInv
-                      simp [hInv.left, v, h2a]
+                      simp [hInv.left, v]
                     exact VotedInv sent Quorums hInv acc1 v c h_acc_voted
                   | _ => simp at hm1_match;
                 use Q; simp [h_Q_in_quorums]
@@ -579,7 +576,7 @@ lemma ind_phase2a {b: Ballot} (hInv: MsgInv sent Quorums) (h2a: Phase2a Quorums 
                         rcases h_S_set_of_oneb hm2S with ⟨_, h_m2_match_bal_eq_b⟩
                         simp [h_case_m2] at h_m2_match_bal_eq_b
                         -- refine Nat.le_sub_one_of_lt ?_
-                        simp [Nat.le_sub_one_of_lt, h_m2_match_bal_eq_b, h_b2_less_than_b, h_b2_greater_than_c, h_b2_less_than_b]
+                        simp only [h_m2_match_bal_eq_b, h_b2_less_than_b]
                       exact (h_lim h_lower h_upper)
                     rw [acc_eq] at no_ex; exact no_ex
                   | _ => simp [h_case_m2] at hm2_match;

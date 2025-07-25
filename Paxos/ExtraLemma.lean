@@ -38,11 +38,11 @@ theorem mem_max_prop_is_twob {m : Message} {a : Acceptor}:
   m ∈ max_prop sent a → ∃ (b : Option Ballot) (v : Option Value), m = Message.twob b v a := by
   dsimp [max_prop] at *
   split_ifs with h_nonempty
-  · simp only [Set.mem_sep, Set.mem_setOf, exists_prop, and_assoc] at *
-    intro hm; simp at hm
+  · simp
+    intro hm;
     simp [hm]
   · intro h_mem
-    simp only [Set.mem_setOf, exists_prop, and_assoc] at h_mem
+    simp only [Set.mem_setOf, and_assoc] at h_mem
     rcases h_mem with ⟨_h_sent, ⟨b, v, rfl⟩, _⟩
     exact ⟨b, v, rfl⟩
 
@@ -50,13 +50,13 @@ theorem mem_max_prop_is_twob {m : Message} {a : Acceptor}:
 theorem max_prop_not_empty_implies_voted_for {a : Acceptor} {b: Ballot} {v: Value} : Message.twob b (some v) a ∈ max_prop sent a → VotedForIn sent a v b := by
   intro h_mem
   unfold max_prop at h_mem
-  simp [*] at *
+  simp at h_mem
   split_ifs at h_mem with h_nonempty
-  · simp only [Set.mem_sep, Set.mem_setOf, exists_prop, and_assoc] at h_mem
+  · simp only [Set.mem_setOf, and_assoc] at h_mem
     unfold VotedForIn
-    simp [*] at *
+    simp [h_mem.1]
   · exfalso
-    simp at *
+    simp at h_mem
 
 -- Effort: 20 min
 /-- This lemma states that either one of ballot or value is empty, then the other one must also be empty
@@ -82,17 +82,18 @@ lemma max_prop_empty_ballot_iff_empty_value {a : Acceptor} {m : Message}
 theorem max_prop_implies_not_voted_for_greater_ballots {a: Acceptor} {b : Ballot} {v: Value} : Message.twob b (some v) a ∈ max_prop sent a → ∀ b' v', b' > b → ¬ VotedForIn sent a v' b' := by
   intro h_mem
   unfold max_prop at h_mem
-  simp [*] at *
+  simp at h_mem
   let twobs := { m | m ∈ sent ∧ ∃ b v, m = Message.twob b v a }
   split_ifs at h_mem with h_nonempty
-  · simp only [Set.mem_sep, Set.mem_setOf, exists_prop, and_assoc] at h_mem
+  · simp only [Set.mem_setOf, and_assoc] at h_mem
     rcases h_mem with ⟨h1, h2, h3⟩
     by_contra h_neg
     unfold VotedForIn at *
-    simp [*] at *
+    simp at h_neg
     obtain ⟨b', hb'_gt, v', hmem'⟩ := h_neg
     specialize h3 (Message.twob b' (some v') a)
-    simp [*] at *
+    simp [hmem'] at h3
+    -- simp [*] at *
     exact Nat.le_lt_asymm h3 hb'_gt
   · exfalso
     simp at *
@@ -109,14 +110,15 @@ theorem max_prop_empty_implies_not_voted_in_prev_ballots {a: Acceptor} (hm: Mess
   simp [*] at *
   let twobs := { m | m ∈ sent ∧ ∃ b v, m = Message.twob b v a }
   split_ifs at hm with h_nonempty
-  · simp only [Set.mem_sep, Set.mem_setOf, exists_prop, and_assoc] at hm
+  · simp only [Set.mem_setOf, and_assoc] at hm
     simp at hm
   · unfold VotedForIn at h_voted
     obtain ⟨m, hm_sent, hm_two_b⟩ := h_voted
     rw [not_exists] at h_nonempty
     specialize h_nonempty m
-    simp [hm_sent, hm_two_b] at h_nonempty
-    simp [*] at *
+    simp [hm_two_b] at h_nonempty
+    rw [←hm_two_b] at h_nonempty
+    exact h_nonempty hm_sent
 
 /-- This lemma states that if `sent` is a subset of `sent'`, then `VotedForIn sent a v b` implies
     `VotedForIn sent' a v b`. This is used in the proof of `SafeAtStable`.
@@ -142,14 +144,14 @@ lemma phase1b_imp_mono_sent {a: Acceptor} (hPhase1b: Phase1b sent sent' a) : sen
     cases r with
     | twob rbal rvbal racc =>
       simp at hmatch
-      split_ifs at hmatch with hpos <;> simp [*] at *
-    | _ => simp at *;
-  | _ => simp at *;
+      split_ifs at hmatch with hpos <;> simp [hmatch]
+    | _ => simp at hmatch;
+  | _ => simp at hmatch;
 
 @[simp]
 lemma phase2a_imp_mono_sent {b: Ballot} (hPhase2a: Phase2a Quorums sent sent' b) : sent ⊆ sent' := by
   unfold Phase2a at hPhase2a
-  split_ifs at hPhase2a with h1 h2 <;> simp [*] at *
+  split_ifs at hPhase2a with h1 h2 <;> simp [hPhase2a]
 
 @[simp]
 lemma phase2b_imp_mono_sent {a: Acceptor} (hPhase2b: Phase2b sent sent' a) : sent ⊆ sent' := by
@@ -158,8 +160,8 @@ lemma phase2b_imp_mono_sent {a: Acceptor} (hPhase2b: Phase2b sent sent' a) : sen
   cases m2b with
   | twoa mbal mval =>
     simp at hmatch
-    split_ifs at hmatch with hpos <;> simp [*] at *
-  | _ => simp at hmatch; simp [*] at *;
+    split_ifs at hmatch with hpos <;> simp [hmatch]
+  | _ => simp [hmatch];
 
 /-- This lemma simply states that `sent` grows monotonically with `Next`.
     That is, if `sent` is a subset of `sent'`, then `Next` will also be a subset of `sent'`.
@@ -181,15 +183,15 @@ lemma next_imp_mono_sent (hNext: Next Quorums sent sent') : sent ⊆ sent' := by
 lemma send_add_non_twob_preserves_no_vote {a: Acceptor} {b: Ballot} {m: Message} (hnv : ∀ v, ¬ VotedForIn sent a v b) (hsend : sent' = Send m sent) (hm : (∃ bal, m = Message.onea bal) ∨ (∃ bal maxV maxVal a', m = Message.oneb bal maxV maxVal a') ∨ (∃ bal val, m = Message.twoa bal val)) : ∀ v, ¬ VotedForIn sent' a v b := by
   intro v hVoted
   cases hm with
-  | inl h_1a => specialize hnv v; unfold VotedForIn at *; simp [hsend, hVoted] at hVoted; cases hVoted with
+  | inl h_1a => specialize hnv v; unfold VotedForIn at *; simp [hsend] at hVoted; cases hVoted with
     | inl h_m_eq_2b => cases m with
       | _ => simp [*] at *
-    | inr h_2b_in_sent => simp [*] at *;
+    | inr h_2b_in_sent => simp [h_2b_in_sent] at hnv;
   | inr h_1b_2a => cases h_1b_2a with
-    | inl h_1b => specialize hnv v; unfold VotedForIn at *; simp [hsend, hVoted] at hVoted; cases hVoted with -- This could be simplified to one line with <;> as below, here keep it for clarity
+    | inl h_1b => specialize hnv v; unfold VotedForIn at *; simp [hsend] at hVoted; cases hVoted with -- This could be simplified to one line with <;> as below, here keep it for clarity
       | inl h_m_eq_2b => cases m <;> simp [*] at *
-      | inr h_2b_in_sent => simp [*] at *
-    | inr h_2a => specialize hnv v; unfold VotedForIn at *; simp [hsend, hVoted] at hVoted; cases hVoted <;> cases m <;> simp [*] at * -- Simplified
+      | inr h_2b_in_sent => simp [h_2b_in_sent] at hnv;
+    | inr h_2a => specialize hnv v; unfold VotedForIn at *; simp [hsend] at hVoted; cases hVoted <;> cases m <;> simp [*] at * -- Simplified
 
 /-- This lemma corresponds to the monotonicity of existantial quantifier describe in the paper -/
 theorem exists_mem_of_subset {s t : Set Message} {P : Message → Prop}
