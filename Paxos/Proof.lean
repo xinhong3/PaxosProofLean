@@ -3,6 +3,7 @@ import Paxos.Prop
 import Paxos.ExtraLemma
 --import Smt
 
+namespace Paxos.Proof
 open Paxos.Spec Paxos.Prop Paxos.ExtraLemma
 
 variable (sent sent' : Set Message)
@@ -779,3 +780,5 @@ theorem Consistent (σ : ℕ → Set Message) (hSpec : PaxosSpec Quorums σ) : �
         simp [hStutter] at ih; exact ih;
   intro n
   exact MsgInv_implies_Consistency (σ n) Quorums (inv n)
+
+end Paxos.Proof
