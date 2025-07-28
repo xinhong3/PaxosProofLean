@@ -4,19 +4,27 @@ namespace Paxos.Spec
 open Set
 open Classical
 
--- Types Definition --
-abbrev Acceptor := String   -- Acceptor
-abbrev Value := String      -- Value
-abbrev Ballot := Nat        -- Ballot is defined to be Nat. We model the empty ballot (defined as -1 in the TLA proof) as none (Option Ballot).
+/-- Types Definition
+    For simplicity, we hardwire Acceptor and Value to be String (instead of Type).
+    We keep Ballot the same as TLA+ spec, which is natural numbers.
+    For the empty ballot (defined as -1 in the TLAPS proof), we use none (Option Ballot).
+ -/
+abbrev Acceptor := String
+abbrev Value := String
+abbrev Ballot := Nat
 
--- Define +, < between Ballot and Option Ballot --
+/--
+  Since we map the empty ballot (-1) to none, need to define `+` between Option Ballot and Nat.
+-/
 instance : HAdd (Option Ballot) Nat (Option Ballot) where
   hAdd
     | none,    0          => none         -- -1 + 0     = -1
     | none,    Nat.succ k => k            -- 0  + (k+1) = k
     | some a,  b          => a + b        -- a  +  b    = a + b
 
--- Examples of using the defined operations on Ballot and Option Ballot
+
+/- Examples of using the defined operations on Ballot and Option Ballot -/
+
 -- #eval (none: Option Ballot) + (1: Ballot)
 -- #eval (0: Ballot) ≤ (1: Ballot)
 -- #eval (some 0: Option Ballot) ≤ (some 1: Option Ballot)
@@ -33,12 +41,12 @@ theorem ballot_none_plus_one_leq_ballot {b : Ballot} : (none : Option Ballot) + 
   dsimp [HAdd.hAdd]
   exact Nat.zero_le b
 
--- We define Message as an inductive type --
+/- Message is defined as an inductive type -/
 inductive Message where
-| onea  (bal : Ballot) : Message
-| oneb  (bal : Ballot) (maxVBal : Option Ballot) (maxVal : Option Value) (acc : Acceptor) : Message --  Define both Ballot and Value to be Option type, corresponds to not voted.
-| twoa  (bal : Ballot) (val : Value) : Message
-| twob  (bal : Option Ballot) (val : Option Value) (acc : Acceptor) : Message                       -- val is of Option becuase last_voted defintion
+| onea  (bal : Ballot)
+| oneb  (bal : Ballot) (maxVBal : Option Ballot) (maxVal : Option Value) (acc : Acceptor) -- `maxVBal` and `maxVal` are defined to be Option, they correspond to no previous twob messages.
+| twoa  (bal : Ballot) (val : Value)
+| twob  (bal : Option Ballot) (val : Option Value) (acc : Acceptor)                       -- Both `bal` and `val` are Option type because `max_prop`. This is a modification from the TLA proof.
 deriving DecidableEq, Repr
 
 /-  Line 16 - 18
