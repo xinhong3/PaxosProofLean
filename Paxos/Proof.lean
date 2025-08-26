@@ -55,16 +55,22 @@ lemma SafeAtStable_Phase1a {b b': Ballot} {v: Value} (h1a: Phase1a sent sent' b'
 lemma SafeAtStable_Phase1b {a: Acceptor} {b: Ballot} {v: Value} (h1b: Phase1b sent sent' a) (hSafe: SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
   unfold SafeAt at *
   have h_sent_mono : sent ⊆ sent' := by exact phase1b_imp_mono_sent sent sent' h1b
-  intro b2 hxb
-  specialize hSafe b2 hxb
-  rcases hSafe with ⟨Q, hQ, hProp⟩
+  -- Goal: ∀ b2 < b, ∃ Q ∈ Quorums, ∀ a ∈ Q, VotedForIn sent' a v b2 ∨ WontVoteIn sent' a b2
+  intro b2 hxb                                      -- intro `b2` and hxb : `b2 < b`
+  specialize hSafe b2 hxb                           -- apply `b2` to `hSafe`
+  rcases hSafe with ⟨Q, hQ, hAllVotedOrWontVote⟩    -- get the quorum that satisfies `hSafe`
+  -- We prove such quorum `Q` satisfies `SafeAt` in `sent'`
+  -- 1. Show that `VotedForIn` stays the same
   have hV : ∀ a ∈ Q, VotedForIn sent a v b2 → VotedForIn sent' a v b2 := by
+    -- From the previous monotonic result for `VotedForIn`
     exact fun a a_1 a_2 ↦ votedForIn_monotonic sent sent' h_sent_mono a_2
+  -- 2. Show that `WontVoteIn` stays the same
   have hW : ∀ a ∈ Q, WontVoteIn sent a b2 → WontVoteIn sent' a b2 := by
     intro A hA hWont
     unfold WontVoteIn at *
-    constructor
-    · unfold Phase1b at h1b
+    constructor     -- `WontVoteIn` is a conjunction, we now prove each one
+    · -- 1. Show that acceptor `A` has not voted for any value in ballot `b2`
+      unfold Phase1b at h1b
       rcases h1b with ⟨m, hmsent, r, hr, hmatch⟩
       cases m with
       | onea b1 =>
@@ -78,13 +84,16 @@ lemma SafeAtStable_Phase1b {a: Acceptor} {b: Ballot} {v: Value} (h1b: Phase1b se
           · simp [hmatch]; exact hWont.left
         | _ => simp at *;
       | _ => simp at *;
-    · exact exists_mem_of_subset h_sent_mono hWont.right
+    · -- 2. Show that `A` will never vote
+      exact exists_mem_of_subset h_sent_mono hWont.right
+  -- Once we have `hV` and `hW` we can use `Q` to prove that `v` is safe at `b` for `sent'`
   use Q; constructor
   · exact hQ
-  · intro A ha
-    specialize hProp A ha         -- get rid of ∀ in hProp
+  · -- Goal: ∀ a ∈ Q, VotedForIn sent' a v b2 ∨ WontVoteIn sent' a b2
+    intro A ha
+    specialize hAllVotedOrWontVote A ha
     specialize hV A ha
-    cases hProp with
+    cases hAllVotedOrWontVote with
     | inl hVotedInPrev => exact Or.inl (hV hVotedInPrev);
     | inr hWontVoteInPrev => exact Or.inr (hW A ha hWontVoteInPrev)
 

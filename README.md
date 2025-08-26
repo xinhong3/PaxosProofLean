@@ -49,3 +49,7 @@ It will build `./Paxos.lean` which imports the Spec, Lemmas and Proof from `./Pa
 ```
 warning: ././././Paxos/Proof.lean:164:8: declaration uses 'sorry'
 ```
+
+## Walkthrough for the Proof
+
+See `SafeAtStable_Phase1b` in `Paxos/Proof.lean` for a walkthrough of the proof with comments.
