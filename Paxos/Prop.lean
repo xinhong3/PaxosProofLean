@@ -38,8 +38,9 @@ def WontVoteIn (a : Acceptor) (b : Ballot) : Prop :=
 SafeAt(v, b) means that no value except perhaps v has been or will be chosen in any ballot lower than b.
 -/
 def SafeAt (v : Value) (b : Ballot) : Prop :=
-  ∀ b2 : Ballot, b2 < b →
-    ∃ Q ∈ Quorums, ∀ a ∈ Q, VotedForIn sent a v b2 ∨ WontVoteIn sent a b2
+  ∀ b2 < b,
+    ∃ Q ∈ Quorums,
+      ∀ a ∈ Q, VotedForIn sent a v b2 ∨ WontVoteIn sent a b2
 
 /--
 MsgInv defines properties satisfied by the contents of messages, for 1b, 2a, and 2b messages.

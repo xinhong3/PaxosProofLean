@@ -55,7 +55,7 @@ ASSUME QuorumAssumption ==
           /\ \A Q1, Q2 \in Quorums : Q1 \cap Q2 # {}
 -/
 variable (Quorums: Set (Set Acceptor)) -- Quorums is a set of sets of acceptors
-axiom QuorumAssumption {Q₁: Set Acceptor} {Q₂: Set Acceptor} (h1: Q₁ ∈ Quorums) (h2: Q₂ ∈ Quorums): Q₁ ∩ Q₂ ≠ ∅
+axiom QuorumAssumption (h1: Q₁ ∈ Quorums) (h2: Q₂ ∈ Quorums): Q₁ ∩ Q₂ ≠ ∅
 
 /- Line 22 - 24
 VARIABLES sent
