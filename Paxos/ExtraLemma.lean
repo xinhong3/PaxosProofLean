@@ -170,10 +170,10 @@ lemma phase2b_imp_mono_sent {a: Acceptor} (hPhase2b: Phase2b sent sent' a) : sen
 @[simp]
 lemma next_imp_mono_sent (hNext: Next Quorums sent sent') : sent ⊆ sent' := by
   unfold Next at hNext
-  rcases hNext with ⟨b, hPhase1a⟩ | ⟨a, hPhase1b⟩ | ⟨b, hPhase2a⟩ | ⟨a, hPhase2b⟩
+  rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
   · exact phase1a_imp_mono_sent sent sent' hPhase1a
-  · exact phase1b_imp_mono_sent sent sent' hPhase1b
   · exact phase2a_imp_mono_sent Quorums sent sent' hPhase2a
+  · exact phase1b_imp_mono_sent sent sent' hPhase1b
   · exact phase2b_imp_mono_sent sent sent' hPhase2b
 
 /--

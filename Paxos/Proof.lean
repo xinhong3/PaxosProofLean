@@ -195,11 +195,11 @@ theorem SafeAtStable (hNext : Next Quorums sent sent')
   (v : Value) (b : Ballot) (hSafe : SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
   have h_sent_sub : sent ⊆ sent' := by exact next_imp_mono_sent Quorums sent sent' hNext
   unfold Next at hNext
-  rcases hNext with ⟨b', h1a⟩ | ⟨a', h1b⟩ | ⟨b', h2a⟩ | ⟨a', h2b⟩
-  · exact SafeAtStable_Phase1a sent sent' Quorums h1a hSafe
-  · exact SafeAtStable_Phase1b sent sent' Quorums h1b hSafe
-  · exact SafeAtStable_Phase2a sent sent' Quorums h2a hSafe
-  · exact SafeAtStable_Phase2b sent sent' Quorums h2b hSafe
+  rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
+  · exact SafeAtStable_Phase1a sent sent' Quorums hPhase1a hSafe
+  · exact SafeAtStable_Phase2a sent sent' Quorums hPhase2a hSafe
+  · exact SafeAtStable_Phase1b sent sent' Quorums hPhase1b hSafe
+  · exact SafeAtStable_Phase2b sent sent' Quorums hPhase2b hSafe
 
 theorem MsgInv_implies_Consistency (hInv : MsgInv sent Quorums) : Consistency sent Quorums := by
   unfold Consistency
@@ -763,11 +763,11 @@ lemma ind_phase2b {a: Acceptor} (hInv: MsgInv sent Quorums) (h2b: Phase2b sent s
 
 theorem Inductiveness (hInv: MsgInv sent Quorums) (hNext: Next Quorums sent sent') : MsgInv sent' Quorums := by
   unfold Next at hNext
-  rcases hNext with ⟨b', h1a⟩ | ⟨a', h1b⟩ | ⟨b', h2a⟩ | ⟨a', h2b⟩
-  · exact ind_phase1a sent sent' Quorums hInv h1a
-  · exact ind_phase1b sent sent' Quorums hInv h1b
-  · exact ind_phase2a sent sent' Quorums hInv h2a
-  · exact ind_phase2b sent sent' Quorums hInv h2b
+  rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
+  · exact ind_phase1a sent sent' Quorums hInv hPhase1a
+  · exact ind_phase2a sent sent' Quorums hInv hPhase2a
+  · exact ind_phase1b sent sent' Quorums hInv hPhase1b
+  · exact ind_phase2b sent sent' Quorums hInv hPhase2b
 
 -- THEOREM Consistent == Spec => []Consistency in TLAPS
 theorem Consistent (σ : ℕ → Set Message) (hSpec : PaxosSpec Quorums σ) : ∀ n, Consistency (σ n) Quorums := by
