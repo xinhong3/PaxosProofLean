@@ -154,9 +154,8 @@ Next == \/ \E b \in Ballots : Phase1a(b) \/ Phase2a(b)
         \/ \E a \in Acceptors : Phase1b(a) \/ Phase2b(a)
 ** The lean code below is equivalent to the above definition, written in a more proof-friendly way for rcases to work
 -/
-def Next : Prop :=
-   (∃b, Phase1a sent sent' b ∨ Phase2a Quorums sent sent' b)
- ∨ (∃a, Phase1b sent sent' a ∨ Phase2b sent sent' a)
+def Next := (∃b, Phase1a sent sent' b ∨ Phase2a Quorums sent sent' b)
+          ∨ (∃a, Phase1b sent sent' a ∨ Phase2b sent sent' a)
 
 /--
 The Specification of Paxos. `σ` represents the trace of the system, which is mapping between `ℕ` and `Set Message`.

@@ -70,7 +70,7 @@ lemma SafeAtStable_Phase1b {a: Acceptor} {b: Ballot} {v: Value} (h1b: Phase1b se
     unfold WontVoteIn at *
     constructor     -- `WontVoteIn` is a conjunction, we now prove each one
     · -- 1. Show that acceptor `A` has not voted for any value in ballot `b2`
-      unfold Phase1b at h1b
+      unfold Phase1b at h1b -- h1b: ∃ m ∈ sent, ∃ r ∈ max_prop sent a, ...
       rcases h1b with ⟨m, hmsent, r, hr, hmatch⟩
       cases m with
       | onea b1 =>
@@ -192,8 +192,7 @@ lemma SafeAtStable_Phase2b {a: Acceptor} {b: Ballot} {v: Value} (h2b: Phase2b se
       | inr hWontVoteInPrev => exact Or.inr (hW A ha hWontVoteInPrev)
 
 theorem SafeAtStable (hNext : Next Quorums sent sent')
-  (v : Value) (b : Ballot) (hSafe : SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
-  have h_sent_sub : sent ⊆ sent' := by exact next_imp_mono_sent Quorums sent sent' hNext
+                     (hSafe : SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
   unfold Next at hNext
   rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
   · exact SafeAtStable_Phase1a sent sent' Quorums hPhase1a hSafe
