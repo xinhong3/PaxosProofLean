@@ -36,7 +36,7 @@ example {b b1: Ballot} (h1: b1 ≤ b) (h2: b ≤ b1 - 1) (h3: b1 > 0) : False :=
   simp at hf
 
 @[simp]
-theorem ballot_none_plus_one_leq_ballot {b : Ballot} : (none : Option Ballot) + (1 : Ballot) ≤ some b := by
+theorem ballot_none_plus_one_leq_ballot {b : Ballot} : (none : Option Ballot) + (1 : Nat) ≤ some b := by
   dsimp [HAdd.hAdd]
   exact Nat.zero_le b
 

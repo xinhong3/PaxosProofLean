@@ -22,11 +22,11 @@ def Chosen (v : Value) : Prop :=
 /-- WontVoteIn(a, b) means that acceptor a has seen a higher ballot than b,
 and did not and will not vote any value with ballot b. -/
 def WontVoteIn (a : Acceptor) (b : Ballot) : Prop :=
-  (∀ v : Value, ¬VotedForIn sent a v b) ∧
-  (∃ m ∈ sent, match m with
-    | Message.oneb b' _ _ a' => a' = a ∧ b' > b  -- 1b message with ballot greater than b
-    | Message.twob b' _ a'   => a' = a ∧ b' > b  -- 2b message with ballot greater than b
-    | _                      => false)
+     (∀ v : Value, ¬VotedForIn sent a v b)
+   ∧ (∃ m ∈ sent, match m with
+                  | Message.oneb b' _ _ a' => a' = a ∧ b' > b
+                  | Message.twob b' _ a'   => a' = a ∧ b' > b
+                  | _                      => false)
 
 /-- SafeAt(v, b) means that no value except perhaps v has been or will be chosen
 in any ballot lower than b. -/
