@@ -9,16 +9,21 @@ open Paxos.Spec Paxos.Prop Paxos.ExtraLemma
 variable (sent sent' : Set Message)
 variable (Quorums : Set (Set Acceptor))
 
-set_option maxHeartbeats 1000000      -- tactic 'simp' failed, nested error: (deterministic) timeout at `isDefEq`, maximum number of heartbeats (200000) has been reached Use `set_option maxHeartbeats <num>` to set the limit
+-- tactic 'simp' failed, nested error: (deterministic) timeout at `isDefEq`, maximum number
+-- of heartbeats (200000) has been reached Use `set_option maxHeartbeats <num>` to set the limit
+set_option maxHeartbeats 1000000
 
-lemma VotedInv (h1: MsgInv sent Quorums) : ∀ a, ∀ v, ∀ b, VotedForIn sent a v b → SafeAt sent Quorums v b := by
+lemma VotedInv (h1: MsgInv sent Quorums):
+                ∀ a, ∀ v, ∀ b, VotedForIn sent a v b → SafeAt sent Quorums v b := by
   unfold MsgInv VotedForIn at *
   intros a v b h; simp at h
   apply h1 at h; simp at h;
   apply h1 at h; simp at h
   exact h.left
 
-lemma VotedOnce {a1 a2: Acceptor} {v1 v2: Value} {b: Ballot} (hInv: MsgInv sent Quorums) (h_voted_1: VotedForIn sent a1 v1 b) (h_voted_2 : VotedForIn sent a2 v2 b) : v1 = v2 := by
+lemma VotedOnce (hInv: MsgInv sent Quorums)
+                (h_voted_1: VotedForIn sent a1 v1 b)
+                (h_voted_2: VotedForIn sent a2 v2 b) : v1 = v2 := by
   unfold VotedForIn MsgInv at *
   have h_m_2a_1 : Message.twoa b v1 ∈ sent := by
     simp at h_voted_1; apply hInv at h_voted_1; simp at h_voted_1; exact h_voted_1
@@ -28,8 +33,8 @@ lemma VotedOnce {a1 a2: Acceptor} {v1 v2: Value} {b: Ballot} (hInv: MsgInv sent 
   apply h_m_2a_1.right at h_m_2a_2; simp at h_m_2a_2
   exact h_m_2a_2.symm
 
--- We get these for free since we've already proved the SafeAtStable, just need some refactoring. These are defined to be used in the proof of the inductiveness of invariants.
-lemma SafeAtStable_Phase1a {b b': Ballot} {v: Value} (h1a: Phase1a sent sent' b') (hSafe: SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
+lemma SafeAtStable_Phase1a  (h1a: Phase1a sent sent' b')
+                            (hSafe: SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
   unfold SafeAt at *
   intro b2 hxb
   specialize hSafe b2 hxb
@@ -52,7 +57,8 @@ lemma SafeAtStable_Phase1a {b b': Ballot} {v: Value} (h1a: Phase1a sent sent' b'
     | inl hVoted => left; exact hV A ha hVoted
     | inr hWont => right; exact hW A ha hWont
 
-lemma SafeAtStable_Phase1b {a: Acceptor} {b: Ballot} {v: Value} (h1b: Phase1b sent sent' a) (hSafe: SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
+lemma SafeAtStable_Phase1b  (h1b: Phase1b sent sent' a)
+                            (hSafe: SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
   unfold SafeAt at *
   have h_sent_mono : sent ⊆ sent' := by exact phase1b_imp_mono_sent sent sent' h1b
   -- Goal: ∀ b2 < b, ∃ Q ∈ Quorums, ∀ a ∈ Q, VotedForIn sent' a v b2 ∨ WontVoteIn sent' a b2
@@ -97,7 +103,8 @@ lemma SafeAtStable_Phase1b {a: Acceptor} {b: Ballot} {v: Value} (h1b: Phase1b se
     | inl hVotedInPrev => exact Or.inl (hV hVotedInPrev);
     | inr hWontVoteInPrev => exact Or.inr (hW A ha hWontVoteInPrev)
 
-lemma SafeAtStable_Phase2a {b b': Ballot} {v: Value} (h2a: Phase2a Quorums sent sent' b') (hSafe: SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
+lemma SafeAtStable_Phase2a  (h2a: Phase2a Quorums sent sent' b')
+                            (hSafe: SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
   have h_sent_mono : sent ⊆ sent' := by exact phase2a_imp_mono_sent Quorums sent sent' h2a
   unfold SafeAt at *
   intro b2 hxb
@@ -126,7 +133,8 @@ lemma SafeAtStable_Phase2a {b b': Ballot} {v: Value} (h2a: Phase2a Quorums sent 
     | inl hVotedInPrev => exact Or.inl (hV hVotedInPrev);
     | inr hWontVoteInPrev => exact Or.inr (hW A ha hWontVoteInPrev)
 
-lemma SafeAtStable_Phase2b {a: Acceptor} {b: Ballot} {v: Value} (h2b: Phase2b sent sent' a) (hSafe: SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
+lemma SafeAtStable_Phase2b  (h2b: Phase2b sent sent' a)
+                            (hSafe: SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
     have h_sent_sub : sent ⊆ sent' := by exact phase2b_imp_mono_sent sent sent' h2b
     unfold SafeAt at *
     intro b2 hxb
@@ -191,8 +199,8 @@ lemma SafeAtStable_Phase2b {a: Acceptor} {b: Ballot} {v: Value} (h2b: Phase2b se
       | inl hVotedInPrev => exact Or.inl (hV hVotedInPrev);
       | inr hWontVoteInPrev => exact Or.inr (hW A ha hWontVoteInPrev)
 
-theorem SafeAtStable (hNext : Next Quorums sent sent')
-                     (hSafe : SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
+theorem SafeAtStable  (hNext : Next Quorums sent sent')
+                      (hSafe : SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
   unfold Next at hNext
   rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
   · exact SafeAtStable_Phase1a sent sent' Quorums hPhase1a hSafe
@@ -200,11 +208,14 @@ theorem SafeAtStable (hNext : Next Quorums sent sent')
   · exact SafeAtStable_Phase1b sent sent' Quorums hPhase1b hSafe
   · exact SafeAtStable_Phase2b sent sent' Quorums hPhase2b hSafe
 
-theorem MsgInv_implies_Consistency (hInv : MsgInv sent Quorums) : Consistency sent Quorums := by
+theorem MsgInv_implies_Consistency (hInv : MsgInv sent Quorums): Consistency sent Quorums := by
   unfold Consistency
   rintro v1 v2 ⟨⟨b1, hChosenIn1⟩, ⟨b2, hChosenIn2⟩⟩
   -- We prove the following symmetrical result for it to be used later in the proof
-  have Consistent_ChosenIn_Diff_Bal (b1: Ballot) (v1: Value) (b2: Ballot) (v2: Value) (hChosenIn1: ChosenIn sent Quorums v1 b1) (hChosenIn2: ChosenIn sent Quorums v2 b2) (h_ls: b1 < b2) : v1 = v2 := by
+  have Consistent_ChosenIn_Diff_Bal (b1: Ballot) (v1: Value) (b2: Ballot) (v2: Value)
+    (hChosenIn1: ChosenIn sent Quorums v1 b1)
+    (hChosenIn2: ChosenIn sent Quorums v2 b2)
+    (h_ls: b1 < b2) : v1 = v2 := by
       have h_safe_b2 : SafeAt sent Quorums v2 b2 := by
         -- By VotedInv, QuorumAssumption DEF ChosenIn, Inv
         unfold ChosenIn at hChosenIn2
@@ -220,8 +231,8 @@ theorem MsgInv_implies_Consistency (hInv : MsgInv sent Quorums) : Consistency se
       unfold ChosenIn at hChosenIn1
       rcases hChosenIn1 with ⟨Q2, hQ2, hvotedin1⟩
       have ⟨aa, haa⟩ := pick_from_quorum_int Quorums hQ1 hQ2
-      have haa_voted_v1_b1 : VotedForIn sent aa v1 b1 := by exact hvotedin1 aa haa.right
-      have haa_safe_b1 : VotedForIn sent aa v2 b1 ∨ WontVoteIn sent aa b1 := by exact hqsb1 aa haa.left
+      have haa_voted_v1_b1 : VotedForIn sent aa v1 b1 := hvotedin1 aa haa.right
+      have haa_safe_b1 : VotedForIn sent aa v2 b1 ∨ WontVoteIn sent aa b1 := hqsb1 aa haa.left
       cases haa_safe_b1 with
       | inl haa_voted_v2_b1 => exact VotedOnce sent Quorums hInv haa_voted_v1_b1 haa_voted_v2_b1
       | inr haa_wont_vote_b1 =>
@@ -246,7 +257,8 @@ theorem MsgInv_implies_Consistency (hInv : MsgInv sent Quorums) : Consistency se
     exact id (Consistent_ChosenIn_Diff_Bal b2 v2 b1 v1 hChosenIn2 hChosenIn1 h_nlt).symm
 
 -- Effort: 1h
-lemma ind_phase1a {b: Ballot} (hInv: MsgInv sent Quorums) (h1a: Phase1a sent sent' b) : MsgInv sent' Quorums := by
+lemma ind_phase1a (hInv: MsgInv sent Quorums)
+                  (h1a: Phase1a sent sent' b) : MsgInv sent' Quorums := by
   have h_subset : sent ⊆ sent' := by
     unfold Phase1a at h1a
     exact send_monotonic h1a
@@ -302,7 +314,6 @@ lemma ind_phase1a {b: Ballot} (hInv: MsgInv sent Quorums) (h1a: Phase1a sent sen
 -- Effort: 5m (Writing down the skeleton, not yet to prove the main one)
 -- 30m: trying to figure out how to get rid of the universal quantifier in MsgInv.
 -- 2hr: finish the rest of the proof. including proving two lemmas: max_prop_not_empty_implies_voted_for, and max_prop_implies_not_voted_for_greater_ballots
-
 /--
 how to prove this? Spent about an hour proving this lemma
 hr : Message.twob rbal (some rvbal) racc ∈ max_prop sent a
@@ -310,7 +321,8 @@ hmatch : sent' = Send (Message.oneb mbal rbal (some rvbal) a) sent
 h_m_eq_oneb : m' = Message.oneb mbal rbal (some rvbal) a
 ⊢ ∀ (b' : Ballot), rbal + 1 ≤ b' → b' ≤ mbal - 1 → ∀ (x : Value), ¬VotedForIn sent' a x b'
 -/
-lemma ind_phase1b {a: Acceptor} (hInv: MsgInv sent Quorums) (h1b: Phase1b sent sent' a) : MsgInv sent' Quorums := by
+lemma ind_phase1b (hInv: MsgInv sent Quorums)
+                  (h1b: Phase1b sent sent' a) : MsgInv sent' Quorums := by
   have h1b_copy := h1b
   rcases h1b with ⟨m, hmsent, r, hr, hmatch⟩
   cases m with
@@ -346,10 +358,12 @@ lemma ind_phase1b {a: Acceptor} (hInv: MsgInv sent Quorums) (h1b: Phase1b sent s
           | some rbal, some rval =>
             simp
             constructor
-            · refine votedForIn_monotonic sent sent' h_subset ?_    -- use refine, and we are just trying to prove that a voted in sent, which can be derived from max_prop
+              -- use refine, and we are just trying to prove that a voted in sent, which can be derived from max_prop
+            · refine votedForIn_monotonic sent sent' h_subset ?_
               rw [h_same_accptor] at *
               exact max_prop_not_empty_implies_voted_for sent hr
-            · have h_not_voted_for_greater_ballots : ∀ (b' : Ballot), rbal + 1 ≤ b' → b' < mbal → ∀ (x : Value), ¬VotedForIn sent a x b' := by
+            · have h_not_voted_for_greater_ballots :
+              ∀ (b' : Ballot), rbal + 1 ≤ b' → b' < mbal → ∀ (x : Value), ¬VotedForIn sent a x b' := by
                 rw [h_same_accptor] at hr
                 have h_not_voted_for_greater_ballots := max_prop_implies_not_voted_for_greater_ballots sent hr
                 intro b' hb_lower hb_upper x
@@ -358,7 +372,9 @@ lemma ind_phase1b {a: Acceptor} (hInv: MsgInv sent Quorums) (h1b: Phase1b sent s
               exact fun b' a_1 a_2 x ↦        -- This is from "apply?" I think the goal is clear enough but simp [h_not_voted_for_greater_ballots, l1] didn't work. TODO: make this more readble
                 (fun {a b} ha ↦ (iff_false_left ha).mp)
                   (h_not_voted_for_greater_ballots b' a_1 a_2 x) (l1 a x b')
-        · have h_m'_in_sent : m' ∈ sent := by simp [*] at * ; simp [h_m_eq_oneb] at hm' ; exact hm'    -- TODO: This part is repetitive, as I copied this from the 1a case and just changes a few things. How to get rid of this repetition?
+         -- TODO: This part is repetitive, as I copied this from the 1a case and just changes a few things.
+         --       How to get rid of this repetition?
+        · have h_m'_in_sent : m' ∈ sent := by simp [*] at * ; simp [h_m_eq_oneb] at hm' ; exact hm'
           cases hm' : m' with
           | onea b1 => simp
           | oneb b1 maxVBal maxVal a1 =>
@@ -402,12 +418,13 @@ lemma ind_phase1b {a: Acceptor} (hInv: MsgInv sent Quorums) (h1b: Phase1b sent s
   | _ => simp [*] at *
 -- Effort: 1h30m, taking care of some chores with Phase 2a.
 -- Effort: 10hr trying to prove the inductiveness. Also make changes to the Spec and MsgInv.
-lemma ind_phase2a {b: Ballot} (hInv: MsgInv sent Quorums) (h2a: Phase2a Quorums sent sent' b) : MsgInv sent' Quorums := by
+lemma ind_phase2a (hInv: MsgInv sent Quorums)
+                  (h2a: Phase2a Quorums sent sent' b) : MsgInv sent' Quorums := by
   have h2a_copy := h2a
   unfold Phase2a at h2a
   split_ifs at h2a with h_exist_prev_2a_msg h_no_prev_2a_msg
   · simp [hInv, h2a]
-  · let v := Classical.choose h_no_prev_2a_msg                -- This line is suggested by chatGPT
+  · let v := Classical.choose h_no_prev_2a_msg                -- suggested by chatGPT
     have h_send : sent' = Send (Message.twoa b v) sent := by  -- after the previous line, we can get the send relation
       simpa [v] using h2a
     have h_subset : sent ⊆ sent' := by exact send_monotonic h_send
@@ -436,7 +453,7 @@ lemma ind_phase2a {b: Ballot} (hInv: MsgInv sent Quorums) (h2a: Phase2a Quorums 
             constructor
             · cases m1 with
               | oneb bal1 maxVBal1 maxVal1 acc1 =>
-                let m1 := Message.oneb bal1 maxVBal1 maxVal1 acc1     -- TODO: get rid of renaming of m1, and ust the h_m1.
+                let m1 := Message.oneb bal1 maxVBal1 maxVal1 acc1   -- TODO: get rid of renaming of m1, and ust the h_m1.
                 have h_m1_in_sent : m1 ∈ sent := by exact Set.mem_of_mem_inter_left (h_S_set_of_oneb hm1S)
                 have bal1_eq : bal1 = b := by
                   rcases h_S_set_of_oneb hm1S with ⟨_, h_match_m1_eq_b⟩
@@ -670,7 +687,6 @@ lemma ind_phase2a {b: Ballot} (hInv: MsgInv sent Quorums) (h2a: Phase2a Quorums 
               exfalso
               specialize h_exist_prev_2a_msg m'; simp [hm', hm_sent'] at h_exist_prev_2a_msg; exact h_exist_prev_2a_msg h_b1_eq_b_and_v1_eq_v.left
           | _ => simp;
-          -- cases m2 <;> simp [*] at * ; apply h_inv_right at h_m2_in_sent' ; exact h_m2_in_sent' -- -- tactic 'simp' failed, nested error: (deterministic) timeout at `isDefEq`, maximum number of heartbeats (200000) has been reached Use `set_option maxHeartbeats <num>` to set the limit
       | twob b1 v1 a1 =>
         match b1, v1 with
         | none, none => simp;
@@ -681,7 +697,8 @@ lemma ind_phase2a {b: Ballot} (hInv: MsgInv sent Quorums) (h2a: Phase2a Quorums 
 -- Effort: 30m, pending on the proof for m' being a 1b message
 -- Effort: 30m on the proof for m' being a 2a message, chatGPT helped.
 -- Total Effort: 1h
-lemma ind_phase2b {a: Acceptor} (hInv: MsgInv sent Quorums) (h2b: Phase2b sent sent' a) : MsgInv sent' Quorums := by
+lemma ind_phase2b (hInv: MsgInv sent Quorums)
+                  (h2b: Phase2b sent sent' a) : MsgInv sent' Quorums := by
   have h2b_copy := h2b
   unfold Phase2b at h2b
   rcases h2b with ⟨m2a, h_2a_sent, hmatch⟩
@@ -760,7 +777,8 @@ lemma ind_phase2b {a: Acceptor} (hInv: MsgInv sent Quorums) (h2b: Phase2b sent s
     · simp [*] at *
   | _ => simp [*] at *
 
-theorem Inductiveness (hInv: MsgInv sent Quorums) (hNext: Next Quorums sent sent') : MsgInv sent' Quorums := by
+theorem Inductiveness (hInv: MsgInv sent Quorums)
+                      (hNext: Next Quorums sent sent') : MsgInv sent' Quorums := by
   unfold Next at hNext
   rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
   · exact ind_phase1a sent sent' Quorums hInv hPhase1a
@@ -768,8 +786,9 @@ theorem Inductiveness (hInv: MsgInv sent Quorums) (hNext: Next Quorums sent sent
   · exact ind_phase1b sent sent' Quorums hInv hPhase1b
   · exact ind_phase2b sent sent' Quorums hInv hPhase2b
 
--- THEOREM Consistent == Spec => []Consistency in TLAPS
-theorem Consistent (σ : ℕ → Set Message) (hSpec : PaxosSpec Quorums σ) : ∀ n, Consistency (σ n) Quorums := by
+-- THEOREM Consistent == Spec => []Consistency in the TLAPS proof
+theorem Consistent  (σ : ℕ → Set Message)
+                    (hSpec : PaxosSpec Quorums σ) : ∀ n, Consistency (σ n) Quorums := by
   have inv : ∀ n, MsgInv (σ n) Quorums := by
     intro n
     induction n with
