@@ -9,7 +9,7 @@ open Classical
     We keep Ballot the same as TLA+ spec, which is natural numbers.
     For the empty ballot (defined as -1 in the TLAPS proof), we use none (Option Ballot).-/
 abbrev Acceptor := String
-abbrev Value := String
+abbrev Value := Nat
 abbrev Ballot := Nat
 
 /-- Since we map the empty ballot (-1) to none,
