@@ -1,49 +1,36 @@
+/-
+  Lean translation of Paxos TLA Spec.
+  TLA Spec is available at https://arxiv.org/pdf/1802.09687, Appendix A.
+  --! denotes the difference this specificaiton and the TLA spec.
+-/
 import Mathlib.Tactic
 
 namespace Paxos.Spec
 open Set
 open Classical
 
-/-- Types Definition
-    For simplicity, we hardwire Acceptor and Value to be String (instead of Type).
-    We keep Ballot the same as TLA+ spec, which is natural numbers.
-    For the empty ballot (defined as -1 in the TLAPS proof), we use none (Option Ballot).-/
-abbrev Acceptor := String
-abbrev Value := Nat
-abbrev Ballot := Nat
+/- Types Definition. In TLA these are defined as constants.
+   Ballot is defined as `Nat`, which is the same as in TLA.
+   --! Acceptor and Value are hardwired to `Nat`.
+-/
+abbrev Acceptor := Nat      -- hardwired to Nat
+abbrev Value := Nat         -- hardwired to Nat
+abbrev Ballot := Nat        -- same as TLA+, empty ballot are represented by `none`.
 
-/-- Since we map the empty ballot (-1) to none,
-    need to define `+` between Option Ballot and Nat. -/
+/-- Define `+` between `Option Ballot` and `Nat`.
+    This is for the 2a invariant (`b' ≥ (maxVBal + (1: Nat)`), needed because we mapped
+    `-1` to `none`.
+-/
 instance : HAdd (Option Ballot) Nat (Option Ballot) where
   hAdd
     | none,    0          => none         -- -1 + 0     = -1
     | none,    Nat.succ k => k            -- 0  + (k+1) = k
     | some a,  b          => a + b        -- a  +  b    = a + b
 
-
-/- Examples of using the defined operations on Ballot and Option Ballot -/
-
--- #eval (none: Option Ballot) + (1: Ballot)
--- #eval (0: Ballot) ≤ (1: Ballot)
--- #eval (some 0: Option Ballot) ≤ (some 1: Option Ballot)
--- #eval (none: Option Ballot) + 1 ≤ (none: Option Ballot)
-
--- Minimal example for ballot comparison (used to prove the inductiveness of Phase 2a.)
--- linarith didn't work.
-example {b b1: Ballot} (h1: b1 ≤ b) (h2: b ≤ b1 - 1) (h3: b1 > 0) : False := by
-  have h2' : b < b1 := by exact (Nat.lt_iff_le_pred h3).mpr h2
-  have hf : b1 < b1 := by exact Nat.lt_of_le_of_lt h1 h2'
-  simp at hf
-
-@[simp]
-theorem ballot_none_plus_one_leq_ballot {b : Ballot} : (none : Option Ballot) + (1 : Nat) ≤ some b := by
-  dsimp [HAdd.hAdd]
-  exact Nat.zero_le b
-
 /-- Message is defined as an inductive type -/
 --! in oneb `maxVBal` and `maxVal` are defined to be `Option` type.
---! `bal` and `val` in `twob` are also defined to be `Option` type, this is a modification
---! from the TLA+ spec to ensure type consistency with `max_prop`.
+--! in twob `bal` and `val` are also defined to be `Option` type. This is to ensure type
+--!   compatibility with `max_prop`.
 inductive Message where
 | onea  (bal : Ballot)
 | oneb  (bal : Ballot) (maxVBal : Option Ballot) (maxVal : Option Value) (acc : Acceptor)
@@ -51,57 +38,39 @@ inductive Message where
 | twob  (bal : Option Ballot) (val : Option Value) (acc : Acceptor)
 deriving DecidableEq, Repr
 
-/-  Line 16 - 18
-ASSUME QuorumAssumption ==
-          /\ Quorums \subseteq SUBSET Acceptors
-          /\ \A Q1, Q2 \in Quorums : Q1 \cap Q2 # {}
--/
+/- Quorums and QuorumAssumption. Same as in TLA. -/
+
 variable (Quorums: Set (Set Acceptor)) -- Quorums is a set of sets of acceptors
 axiom QuorumAssumption (h1: Q₁ ∈ Quorums) (h2: Q₂ ∈ Quorums): Q₁ ∩ Q₂ ≠ ∅
 
-/- Line 22 - 24
-VARIABLES sent
+--  History variable `sent`.
+--! An extra variable `sent'` is added to represent the 'primed' variable in TLA.
+variable (sent sent': Set Message)
 
-vars == <<sent>>
--/
-variable (sent sent': Set Message) -- sent' is added here to model the next state
-
-/- Line 26
-Send(m) == sent' = sent \cup {m}
--/
+/-- Definition of `Send`. Same as in TLA. -/
 @[simp]
-def Send (m : Message) (sent : Set Message) := sent ∪ {m}
+def Send (m : Message) (sent : Set Message) : Set Message := sent ∪ {m}
 
-/- Line 30
-Init == sent = {} -/
-def Init : Prop := sent = ∅
-
-/-- Phase 1a: A 1a message with ballot b is sent by some proposer (to all processes). -/
+/-- Phase 1a. Same as in TLA. -/
 @[simp]
 def Phase1a (b : Ballot) : Prop :=
   sent' = Send (Message.onea b) sent
 
 /-- Get the maximum ballot and value that an acceptor has voted for.
-
-instead of returning a tuple for the ballot and value, return a set of 2b messages.
-Note: last_voted(a) is used in the [github repo](https://github.com/DistAlgo/proofs/blob/master/basic-paxos/PaxosHistVarNFM18.tla#L47). However, in the paper (https://arxiv.org/pdf/1802.09687), the name is max_prop. Here we use max_prop because it is more informative.
+--! In TLA, when `twobs` is empty it returns a record with `bal` and `val` begin set to
+--!  False. Otherwise, it returns a set of `2b` messages. Here we always return a set
+--!  of `2b` messages to ensure the type compatibility.
 -/
 def max_prop (a : Acceptor): Set Message :=
   let twobs := {m ∈ sent | ∃ (b: Ballot) (v: Value), m = Message.twob b v a}
   if twobs ≠ ∅ then
       {m₁ ∈ twobs | ∀m₂ ∈ twobs, ∃ (b₁ b₂: Ballot) (v₁ v₂: Value),
                       m₁ = Message.twob b₁ v₁ a ∧ m₂ = Message.twob b₂ v₂ a ∧ b₁ ≥ b₂}
-  else {Message.twob none none a}  -- For -1 ballot, we use `none`.
+  else {Message.twob none none a}  -- return `none` for both `maxVBal` and `maxVal`.
 
-/-- Phase 1b: For an acceptor a, if there is a 1a message m with ballot m.bal that is higher than the highest it
-has seen, a sends a 1b message with m.bal alongwith the highest-numbered pair it has voted for.
-
-The If-then-else is used to simplify the definition, because we need to assert in the case of the guard not
-being satisfied, `sent' = sent`.
-
-In first order logic we would write this as: `(A → B) ∧ (¬A → C)`, where `A` is the guard condition, `B` is the action
-to be taken if the guard is satisfied, and `C` is the action to be taken if the guard is not satisfied.
-We use `if-then-else` to express this in a more compact way, so `A` only appears once: `if A then B else C`. -/
+/-- Phase1b. Same as in TLA except using pattern matching and conditional (`if-else`).
+--! Need the conditional to say when the guard is not satisfied: `sent' = sent`.
+-/
 def Phase1b (a : Acceptor) : Prop :=
   ∃ m ∈ sent, ∃r ∈ max_prop sent a,
     match m, r with
@@ -114,65 +83,60 @@ def Phase1b (a : Acceptor) : Prop :=
        else sent' = sent
     | _, _ => False
 
-/-- Phase 2a: If there is no 2a message in sent with ballot b, and a quorum of acceptors has sent a set S of 1b
-messages with ballot b, a proposer sends a 2a message with ballot b and value v, where v is the value with
-the highest ballot in S, or is any value in V if no acceptor that responded in S has voted for anything.
-
-The choice of using if-then-else if to make the definition shorter, similar to the Phase1b definition. However, we have nested guard conditions, so multiple if-then-else are used. -/
+/-- Phase 2a. Same as in TLA except using pattern matching and conditional (`if-else`).
+--- We also have nested `if-else` in Phase2a because in the second one we need
+     `Classical.choose` to pick `v` from the existential statement.
+-/
 def Phase2a (b : Ballot) : Prop :=
   if (¬∃ m ∈ sent, match m with
                 | Message.twoa b' _ => b' = b
                 | _                 => False)
-  then if φ : ∃ (v : Value) (Q : Set Acceptor) (S : Set Message),
-              Q ∈ Quorums
-            ∧ S ⊆ { m ∈ sent | match m with
-                               | Message.oneb b' _ _ _ => b' = b
-                               | _ => False}
-      ∧ (∀ a ∈ Q, ∃ m ∈ S, match m with
-                           | Message.oneb _ _ _ a' => a' = a
-                           | _ => False)
-      ∧ ((∀ m ∈ S, match m with
-                   | Message.oneb _ maxVBal _ _ => maxVBal = none
-                   | _ => True)
-        ∨ ∃ (c : Ballot), 0 ≤ c ∧ c ≤ b - (1 : Nat)
-            ∧ (∀ m ∈ S, match m with
-                        | Message.oneb _ maxVBal _ _ => maxVBal ≤ c
-                        | _ => True)
-            ∧ (∃ m ∈ S, match m with
-                        | Message.oneb _ maxVBal maxVal _ => maxVBal = c ∧ maxVal = v
-                        | _ => False))
-        then let v := choose φ; sent' = Send (Message.twoa b v) sent
+  then if φ :
+      ∃ (v : Value) (Q : Set Acceptor) (S : Set Message), Q ∈ Quorums ∧
+      S ⊆ { m ∈ sent | match m with | Message.oneb b' _ _ _ => b' = b | _ => False}
+        ∧ (∀ a ∈ Q, ∃ m ∈ S, match m with | Message.oneb _ _ _ a' => a' = a | _ => False)
+        ∧ ((∀ m ∈ S, match m with
+                     | Message.oneb _ maxVBal _ _ => maxVBal = none
+                     | _ => True)
+          ∨ ∃ (c : Ballot), 0 ≤ c ∧ c ≤ b - (1 : Nat)
+              ∧ (∀ m ∈ S, match m with
+                          | Message.oneb _ maxVBal _ _ => maxVBal ≤ c
+                          | _ => True)
+              ∧ (∃ m ∈ S, match m with
+                          | Message.oneb _ maxVBal maxVal _ => maxVBal = c ∧ maxVal = v
+                          | _ => False))
+        then let v := Classical.choose φ; sent' = Send (Message.twoa b v) sent
     else sent' = sent
   else sent' = sent
 
-/-- Phase 2b: For an acceptor a, if there is a 2a message m with ballot m.bal that is higher
-than or equal to the highest it has seen, a sends a 2b message with m.bal and m.val. -/
-def Phase2b (a : Acceptor) : Prop :=
-  ∃ m ∈ sent, match m with
-    | Message.twoa b v =>
-      if (∀ m₂ ∈ sent, match m₂ with
-         | Message.oneb b₂ _ _ a' => a' = a → b ≥ b₂
-         | Message.twob b₂ _ a' => a' = a → b ≥ b₂
+/-- Phase 2b. Same as in TLA. -/
+def Phase2b (a : Acceptor) : Prop := ∃ m ∈ sent,
+  match m with
+  | Message.twoa b v =>
+      if (∀ m2 ∈ sent, match m2 with
+         | Message.oneb b2 _ _ a' => a' = a → b ≥ b2
+         | Message.twob b2 _ a' => a' = a → b ≥ b2
          | _ => True)
       then sent' = Send (Message.twob b v a) sent
       else sent' = sent
-    | _ => sent' = sent
+  | _ => sent' = sent
 
-/-- Next == \/ \E b \in Ballots : Phase1a(b) \/ Phase2a(b)
-        \/ \E a \in Acceptors : Phase1b(a) \/ Phase2b(a) -/
---! equvilant to the TLA+ definition, written this way for convienience of `rcases`.
-def Next := (∃b, Phase1a sent sent' b ∨ Phase2a Quorums sent sent' b)
-          ∨ (∃a, Phase1b sent sent' a ∨ Phase2b sent sent' a)
+/-- Init. Same as in TLA. -/
+def Init : Prop := sent = ∅
+
+/-- Next. Same as in TLA. -/
+def Next : Prop :=    (∃b, Phase1a sent sent' b ∨ Phase2a Quorums sent sent' b)
+                    ∨ (∃a, Phase1b sent sent' a ∨ Phase2b sent sent' a)
 
 /--
-    The Specification of Paxos. This is `Spec == Init /\ [][Next]_vars` in TLA+.
+    This is `Spec == Init /\ [][Next]_vars` in TLA+.
+    --! We model the temporal logic formula using trace.
+    --! named `PaxosSpec` to avoid name clashes with the `Spec` namespace.
     `σ` represents the trace of the system, which is mapping from `ℕ` to `Set Message`.
-    1. The initial state is `Init (σ 0)`
-    2. The next state is defined by the relation
-      `Next Quorums (σ i) (σ (i+1)) ∨ (σ i) = (σ (i+1))`.
-    3. Always operator is modeled by the universal quantification over all `i`.
-    4. `(σ i) = (σ (i+1))` in the second part of the disjunction models stuttering steps.
-    It is named `PaxosSpec` to avoid name clashes with the `Spec` namespace. -/
+      1. The initial state is `Init (σ 0)`
+      2. The next state is defined by the relation (allowing stuttering)
+         `Next Quorums (σ i) (σ (i+1)) ∨ (σ i) = (σ (i+1))`.
+-/
 def PaxosSpec (σ : ℕ → Set Message) : Prop :=
   Init (σ 0) ∧ (∀ i, Next Quorums (σ i) (σ (i+1)) ∨ (σ i) = (σ (i+1)))
 
