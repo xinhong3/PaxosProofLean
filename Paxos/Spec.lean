@@ -136,6 +136,7 @@ def Next : Prop :=    (∃b, Phase1a sent sent' b ∨ Phase2a Quorums sent sent'
       1. The initial state is `Init (σ 0)`
       2. The next state is defined by the relation (allowing stuttering)
          `Next Quorums (σ i) (σ (i+1)) ∨ (σ i) = (σ (i+1))`.
+    Also see: https://protocols-made-fun.com/lean/2025/06/10/lean-epfd-completeness.html
 -/
 def PaxosSpec (σ : ℕ → Set Message) : Prop :=
   Init (σ 0) ∧ (∀ i, Next Quorums (σ i) (σ (i+1)) ∨ (σ i) = (σ (i+1)))
