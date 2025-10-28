@@ -1,3 +1,8 @@
+/-
+  Lean translation of Paxos. For the proofs.
+  See the TLA equivalent in https://arxiv.org/pdf/1802.09687, Appendix C.
+  --! denotes the difference this specificaiton and the TLA spec.
+-/
 import Paxos.Spec
 import Paxos.Prop
 import Paxos.ExtraLemma
