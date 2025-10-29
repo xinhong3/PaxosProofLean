@@ -11,11 +11,15 @@ open Classical
 
 /- Types Definition. In TLA these are defined as constants.
    Ballot is defined as `Nat`, which is the same as in TLA.
-   --! Acceptor and Value are hardwired to `Nat`.
 -/
-abbrev Acceptor := Nat      -- hardwired to Nat
-abbrev Value := Nat         -- hardwired to Nat
+axiom Acceptor : Type
+axiom Value    : Type
 abbrev Ballot := Nat        -- same as TLA+, empty ballot are represented by `none`.
+
+--! Acceptor and Value are defined as `Type`. And we assume they have decidable equality
+--! and representation for printing.
+variable [DecidableEq Acceptor] [DecidableEq Value]
+variable [Repr Acceptor]        [Repr Value]
 
 /-- Define `+` between `Option Ballot` and `Nat`.
     This is for the 2a invariant (`b' ≥ (maxVBal + (1: Nat)`), needed because we mapped
@@ -136,7 +140,8 @@ def Next : Prop :=    (∃b, Phase1a sent sent' b ∨ Phase2a Quorums sent sent'
       1. The initial state is `Init (σ 0)`
       2. The next state is defined by the relation (allowing stuttering)
          `Next Quorums (σ i) (σ (i+1)) ∨ (σ i) = (σ (i+1))`.
-    Also see: https://protocols-made-fun.com/lean/2025/06/10/lean-epfd-completeness.html
+    For trace, also see (Igor Konnov):
+      https://protocols-made-fun.com/lean/2025/06/10/lean-epfd-completeness.html
 -/
 def PaxosSpec (σ : ℕ → Set Message) : Prop :=
   Init (σ 0) ∧ (∀ i, Next Quorums (σ i) (σ (i+1)) ∨ (σ i) = (σ (i+1)))
