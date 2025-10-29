@@ -17,9 +17,7 @@ axiom Value    : Type
 abbrev Ballot := Nat        -- same as TLA+, empty ballot are represented by `none`.
 
 --! Acceptor and Value are defined as `Type`. And we assume they have decidable equality
---! and representation for printing.
 variable [DecidableEq Acceptor] [DecidableEq Value]
-variable [Repr Acceptor]        [Repr Value]
 
 /-- Define `+` between `Option Ballot` and `Nat`.
     This is for the 2a invariant (`b' ≥ (maxVBal + (1: Nat)`), needed because we mapped
@@ -40,7 +38,7 @@ inductive Message where
 | oneb  (bal : Ballot) (maxVBal : Option Ballot) (maxVal : Option Value) (acc : Acceptor)
 | twoa  (bal : Ballot) (val : Value)
 | twob  (bal : Option Ballot) (val : Option Value) (acc : Acceptor)
-deriving DecidableEq, Repr
+deriving DecidableEq
 
 /- Quorums and QuorumAssumption. Same as in TLA. -/
 
