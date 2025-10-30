@@ -1,7 +1,6 @@
-/-
-  Lean translation of Paxos TLA Spec.
-  TLA Spec is available at https://arxiv.org/pdf/1802.09687, Appendix A.
-  --! denotes the difference this specificaiton and the TLA spec.
+/- Basic Paxos specification, translated from the spec in TLA+
+   in https://arxiv.org/pdf/1802.09687, Appendix A, by Chand and Liu, referred to as CL.
+  --! indicates the differences of this spec from the spec in CL
 -/
 import Mathlib.Tactic
 
@@ -9,15 +8,13 @@ namespace Paxos.Spec
 open Set
 open Classical
 
-/- Types Definition. In TLA these are defined as constants.
-   Ballot is defined as `Nat`, which is the same as in TLA.
+/- Types for acceptors, values. and ballots.
+   In CL, the first two are defined as constants for sets.
+   For Ballot, initial dummy value uses -1 in CL; we use "none" as in Option type in Lean.
 -/
-axiom Acceptor : Type
-axiom Value    : Type
-abbrev Ballot := Nat        -- same as TLA+, empty ballot are represented by `none`.
-
---! Acceptor and Value are defined as `Type`. And we assume they have decidable equality
-variable [DecidableEq Acceptor] [DecidableEq Value]
+abbrev Acceptor := Type
+abbrev Value := Type
+abbrev Ballot := Nat
 
 /-- Define `+` between `Option Ballot` and `Nat`.
     This is for the 2a invariant (`b' ≥ (maxVBal + (1: Nat)`), needed because we mapped
@@ -34,11 +31,10 @@ instance : HAdd (Option Ballot) Nat (Option Ballot) where
 --! in twob `bal` and `val` are also defined to be `Option` type. This is to ensure type
 --!   compatibility with `max_prop`.
 inductive Message where
-| onea  (bal : Ballot)
-| oneb  (bal : Ballot) (maxVBal : Option Ballot) (maxVal : Option Value) (acc : Acceptor)
-| twoa  (bal : Ballot) (val : Value)
-| twob  (bal : Option Ballot) (val : Option Value) (acc : Acceptor)
-deriving DecidableEq
+  | onea  (bal : Ballot)
+  | oneb  (bal : Ballot) (maxVBal : Option Ballot) (maxVal : Option Value) (acc : Acceptor)
+  | twoa  (bal : Ballot) (val : Value)
+  | twob  (bal : Option Ballot) (val : Option Value) (acc : Acceptor)
 
 /- Quorums and QuorumAssumption. Same as in TLA. -/
 
