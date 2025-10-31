@@ -31,7 +31,7 @@ lemma ballot_none_plus_one_leq_ballot
 @[simp]
 lemma pick_from_quorum_int {Q₁ Q₂ : Set Acceptor}
     (h1: Q₁ ∈ Quorums)
-    (h2: Q₂ ∈ Quorums): ∃a: Acceptor, a ∈ Q₁ ∩ Q₂ := by
+    (h2: Q₂ ∈ Quorums) : ∃ a: Acceptor, a ∈ Q₁ ∩ Q₂ := by
   have hne := QuorumAssumption Quorums h1 h2
   rcases ((Iff.mpr nonempty_iff_ne_empty) hne) with ⟨aa, haa⟩
   exact Exists.intro aa haa
@@ -52,7 +52,7 @@ lemma option.some_succ_le_some_of_some_le_and_lt {n m k : Ballot}
 @[simp]
 theorem mem_max_prop_is_twob {m : Message} {a : Acceptor}:
     m ∈ max_prop sent a → ∃ (b : Option Ballot) (v : Option Value),
-                            m = Message.twob b v a := by
+                          m = Message.twob b v a := by
   dsimp [max_prop] at *
   split_ifs with h_nonempty
   · simp
@@ -95,15 +95,16 @@ lemma max_prop_empty_ballot_iff_empty_value {a : Acceptor} {m : Message}
   let twobs := { m | m ∈ sent ∧ ∃ b v, m = Message.twob (some b) (some v) a }
   split_ifs at hm with h_nonempty
   · simp at hm; simp [hm];
-  · simp [*] at hm; have h_m_twob := hm.left.right; rcases h_m_twob with ⟨b, v, rfl⟩; simp;
+  · simp [*] at hm; have h_m_twob := hm.left.right; rcases h_m_twob with ⟨b, v, rfl⟩; simp
 
 /-- Effort: 20m
     The acceptor could not have voted for a ballot greater than the one in `max_prop`
 -/
 @[simp]
-theorem max_prop_implies_not_voted_for_greater_ballots {a : Acceptor} {b : Ballot} {v: Value} :
-          Message.twob b (some v) a ∈ max_prop sent a →
-            ∀ b' v', b' > b → ¬ VotedForIn sent a v' b' := by
+theorem max_prop_implies_not_voted_for_greater_ballots
+    {a : Acceptor} {b : Ballot} {v: Value} :
+    Message.twob b (some v) a ∈ max_prop sent a →
+      ∀ b' v', b' > b → ¬ VotedForIn sent a v' b' := by
   intro h_mem
   unfold max_prop at h_mem
   simp at h_mem
@@ -154,7 +155,7 @@ theorem max_prop_empty_implies_not_voted_in_prev_ballots {a: Acceptor}
 -/
 @[simp]
 lemma send_monotonic {sent sent': Set Message} {x: Message}
-                     (h: sent' = Send x sent) : sent ⊆ sent' := by
+    (h: sent' = Send x sent) : sent ⊆ sent' := by
   unfold Send at h; intro X hX; rw [h]; exact mem_union_left {x} hX
 
 /-- Effort: none (direct from definition)
@@ -162,7 +163,7 @@ lemma send_monotonic {sent sent': Set Message} {x: Message}
 -/
 @[simp]
 lemma phase1a_imp_mono_sent {b: Ballot}
-                            (hPhase1a: Phase1a sent sent' b) : sent ⊆ sent' := by
+    (hPhase1a: Phase1a sent sent' b) : sent ⊆ sent' := by
   unfold Phase1a at hPhase1a; exact send_monotonic hPhase1a
 
 /-- Effort: 5m
@@ -170,7 +171,7 @@ lemma phase1a_imp_mono_sent {b: Ballot}
 -/
 @[simp]
 lemma phase1b_imp_mono_sent {a: Acceptor}
-                            (hPhase1b: Phase1b sent sent' a) : sent ⊆ sent' := by
+    (hPhase1b: Phase1b sent sent' a) : sent ⊆ sent' := by
   unfold Phase1b at hPhase1b
   rcases hPhase1b with ⟨m, hm, r, hr, hmatch⟩
   cases m <;> cases r <;> simp at hmatch; simp [hmatch]
@@ -180,7 +181,7 @@ lemma phase1b_imp_mono_sent {a: Acceptor}
 -/
 @[simp]
 lemma phase2a_imp_mono_sent {b: Ballot}
-                            (hPhase2a: Phase2a Quorums sent sent' b) : sent ⊆ sent' := by
+    (hPhase2a: Phase2a Quorums sent sent' b) : sent ⊆ sent' := by
   unfold Phase2a at hPhase2a
   rcases hPhase2a with ⟨h_no_2a, ⟨_, _, _, h_rest⟩⟩
   simp [h_rest]
@@ -190,7 +191,7 @@ lemma phase2a_imp_mono_sent {b: Ballot}
 -/
 @[simp]
 lemma phase2b_imp_mono_sent {a: Acceptor}
-                            (hPhase2b: Phase2b sent sent' a) : sent ⊆ sent' := by
+    (hPhase2b: Phase2b sent sent' a) : sent ⊆ sent' := by
   unfold Phase2b at hPhase2b
   rcases hPhase2b with ⟨m2b, hm2b, hmatch⟩
   cases m2b <;> simp at hmatch; simp [hmatch]
@@ -213,12 +214,12 @@ lemma next_imp_mono_sent (hNext: Next Quorums sent sent') : sent ⊆ sent' := by
     This is used in the proof of `SafeAtStable`.
 -/
 @[simp]
-lemma votedForIn_monotonic (h1: sent ⊆ sent') :
-    VotedForIn sent a v b → VotedForIn sent' a v b := by
+lemma votedForIn_monotonic
+    (h1: sent ⊆ sent') : VotedForIn sent a v b → VotedForIn sent' a v b := by
   intro h1
   rcases h1 with ⟨m, hm, hmatch⟩
   use m
-  refine (and_iff_right ?h.ha).mpr hmatch
+  refine (and_iff_right ?_).mpr hmatch
   apply h1; exact hm
 
 /-- Effort: 15m
@@ -255,7 +256,7 @@ lemma send_add_non_twob_preserves_no_vote {a: Acceptor} {b: Ballot} {m: Message}
     the history variable holds inductively.
 -/
 theorem exists_mem_of_subset {s t : Set Message} {P : Message → Prop}
-  (hsub : s ⊆ t) (hex : ∃ x ∈ s, P x) : ∃ x ∈ t, P x := by
+    (hsub : s ⊆ t) (hex : ∃ x ∈ s, P x) : ∃ x ∈ t, P x := by
   rcases hex with ⟨x, hx_s, hx_P⟩
   exact ⟨x, hsub hx_s, hx_P⟩
 

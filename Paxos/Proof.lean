@@ -10,6 +10,7 @@ import Paxos.ExtraLemma
 namespace Paxos.Proof
 open Paxos.Spec Paxos.Prop Paxos.ExtraLemma
 
+-- Re-introduce variables --
 variable (sent sent' : Set Message)
 variable (Quorums : Set (Set Acceptor))
 
@@ -94,8 +95,7 @@ lemma SafeAtStable_Phase1b
         | twob rbal rval a1 =>
           simp [-Send] at hmatch
           refine send_add_non_twob_preserves_no_vote sent sent' hWont.left hmatch.right ?_
-          refine Or.inr (Or.inl ?_)
-          simp
+          exact Or.inr (Or.inl (by simp))
         | _ => simp at *;
       | _ => simp at *;
     · exact exists_mem_of_subset h_sent_monotonic hWont.right
@@ -240,7 +240,7 @@ lemma phase1a_is_inductive
       match maxVBal, maxVal with
       | some maxVBal, some maxVal =>
         simp [-Send]; simp at hInv
-        refine And.intro ?_ ?_
+        apply And.intro
         · rw [←h1a]
           exact votedForIn_monotonic sent sent' h_sent_monotonic hInv.left
         · intro b' hb_lower hb_upper
@@ -248,8 +248,7 @@ lemma phase1a_is_inductive
           specialize h_not_voted b'
           simp [hb_lower, hb_upper] at h_not_voted
           rw [←h1a]
-          refine send_add_non_twob_preserves_no_vote sent sent' h_not_voted h1a ?_
-          simp;
+          refine send_add_non_twob_preserves_no_vote sent sent' h_not_voted h1a (by simp)
       | none, some maxVal | some maxVBal, none => simp at hInv;
       | none, none =>
         simp [-Send]; simp at hInv;
@@ -258,12 +257,11 @@ lemma phase1a_is_inductive
         specialize h_not_voted b'
         simp [hb_lower] at h_not_voted
         rw [←h1a]
-        refine send_add_non_twob_preserves_no_vote sent sent' h_not_voted h1a ?_
-        simp;
+        refine send_add_non_twob_preserves_no_vote sent sent' h_not_voted h1a (by simp)
     | twoa b1 v1 =>
       simp at hInv; simp [-Send]
       rw [←h1a]
-      refine And.intro ?_ ?_
+      apply And.intro
       · exact SafeAtStable_Phase1a sent sent' Quorums h1a_copy hInv.left
       · have h_inv_right := hInv.right
         intro m2 h_m2_in_sent'
@@ -362,7 +360,7 @@ lemma phase1b_is_inductive
             simp [hm'] at hInv;
           | some maxVBal, some maxVal =>
             simp [-Send]; specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
-            refine And.intro ?_ ?_
+            apply And.intro
             · rw [←h_votedForIn_same]; exact hInv.left
             · intro b' hb_lower hb_upper x
               have h_not_voted := hInv.right
@@ -374,7 +372,7 @@ lemma phase1b_is_inductive
         | twoa b1 v1 =>
           simp at hInv; simp [-Send]
           specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
-          refine And.intro ?_ ?_
+          apply And.intro
           · exact SafeAtStable_Phase1b sent sent' Quorums h1b_copy hInv.left
           · have h_inv_right := hInv.right
             intro m2 h_m2_in_sent'
@@ -663,7 +661,7 @@ lemma phase2a_is_inductive
     | twoa b1 v1 =>   -- For 2a message in sent
       simp at hInv; simp [-Send]
       specialize hInv m' hm_sent'; simp [hm'] at hInv
-      refine And.intro ?_ ?_
+      apply And.intro
       · exact SafeAtStable_Phase2a sent sent' Quorums h2a_copy hInv.left
       · have h_inv_right := hInv.right
         intro m2 h_m2_in_sent'
@@ -766,7 +764,7 @@ lemma phase2b_is_inductive
         | twoa b1 v1 =>
           simp at hInv; simp [-Send]
           specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
-          refine And.intro ?_ ?_
+          apply And.intro
           · exact SafeAtStable_Phase2b sent sent' Quorums h2b_copy hInv.left
           · have h_inv_right := hInv.right
             intro m2 h_m2_in_sent'
@@ -819,7 +817,7 @@ lemma msginv_implies_agree
       rcases hChosenIn2 with ⟨Q2, hQ2, hVotedQ2⟩
       have ⟨aa, haa⟩ := pick_from_quorum_int Quorums hQ2 hQ2
       refine VotedInv sent Quorums hInv aa v2 b2 ?_
-      · specialize hVotedQ2 aa; exact (hVotedQ2 haa.left)
+      specialize hVotedQ2 aa; exact (hVotedQ2 haa.left)
     unfold SafeAt at h_v2_safe_at_b2
     specialize h_v2_safe_at_b2 b1
     have h_v2_safe_at_b1 := h_v2_safe_at_b2 h_b1_lt_b2

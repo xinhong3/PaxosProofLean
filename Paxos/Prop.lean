@@ -8,7 +8,7 @@ import Paxos.Spec
 namespace Paxos.Prop
 open Paxos.Spec
 
---! Reintroduce variables, needed in Lean.
+-- Re-introduce variables --
 variable (sent sent' : Set Message)
 variable (Quorums : Set (Set Acceptor))
 
