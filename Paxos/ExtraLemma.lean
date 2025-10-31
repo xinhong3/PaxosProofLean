@@ -178,7 +178,7 @@ lemma phase1b_imp_mono_sent {a: Acceptor}
     cases r with
     | twob rbal rvbal racc =>
       simp at hmatch
-      split_ifs at hmatch with hpos <;> simp [hmatch]
+      simp [hmatch]
     | _ => simp at hmatch;
   | _ => simp at hmatch;
 

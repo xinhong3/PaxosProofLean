@@ -95,11 +95,9 @@ lemma SafeAtStable_Phase1b
         cases r with
         | twob rbal rval a1 =>
           simp [-Send] at hmatch
-          split_ifs at hmatch with hpos
-          · refine send_add_non_twob_preserves_no_vote sent sent' hWont.left hmatch ?_
-            refine Or.inr ?_; refine Or.inl ?_
-            simp
-          · simp [hmatch]; exact hWont.left
+          refine send_add_non_twob_preserves_no_vote sent sent' hWont.left hmatch.right ?_
+          refine Or.inr (Or.inl ?_)
+          simp
         | _ => simp at *;
       | _ => simp at *;
     · -- show that `A` will never vote
@@ -311,104 +309,101 @@ lemma phase1b_is_inductive
         simp [*] at *
         exact id (Eq.symm h_exists_b_v_with_same_acceptor)
       simp [-Send] at hmatch
-      split_ifs at hmatch with hpos
-      · -- Here we are proving the oneb case
-        have h_sent_monotonic : sent ⊆ sent' := by exact send_monotonic hmatch
-        have h_votedForIn_same :
-            ∀ a v b, VotedForIn sent a v b ↔ VotedForIn sent' a v b := by
-          intro a v b
-          unfold VotedForIn
-          simp [hmatch]
-        unfold MsgInv at hInv; unfold MsgInv
-        have h_exists_b_v_with_same_acceptor := mem_max_prop_is_twob sent hr
-        intro m' hm'
-        -- m' is the witness message sent
-        by_cases h_m_eq_oneb : m' = Message.oneb mbal rbal rval a
-        · simp [h_m_eq_oneb]
-          match rbal, rval with
-          | some rbal, none | none, some rval =>
-            simp; unfold Phase1b at h1b_copy
-            rw [h_same_accptor] at hr
-            apply max_prop_empty_ballot_iff_empty_value at hr
-            simp at hr
+      have h_sent_monotonic : sent ⊆ sent' := by exact send_monotonic hmatch.right
+      have h_votedForIn_same :
+          ∀ a v b, VotedForIn sent a v b ↔ VotedForIn sent' a v b := by
+        intro a v b
+        unfold VotedForIn
+        simp [hmatch]
+      unfold MsgInv at hInv; unfold MsgInv
+      have h_exists_b_v_with_same_acceptor := mem_max_prop_is_twob sent hr
+      intro m' hm'
+      -- m' is the witness message sent
+      by_cases h_m_eq_oneb : m' = Message.oneb mbal rbal rval a
+      · simp [h_m_eq_oneb]
+        match rbal, rval with
+        | some rbal, none | none, some rval =>
+          simp; unfold Phase1b at h1b_copy
+          rw [h_same_accptor] at hr
+          apply max_prop_empty_ballot_iff_empty_value at hr
+          simp at hr
+        | none, none =>
+          simp; rw [←h_same_accptor] at hr
+          intro b hb_upper
+          have h_not_voted_in_sent :=
+            max_prop_empty_implies_not_voted_in_prev_ballots sent hr b
+          exact fun x =>
+            (fun {a b} ha => (iff_false_left ha).mp) (h_not_voted_in_sent x)
+              (h_votedForIn_same a x b)
+        | some rbal, some rval =>
+          simp
+          constructor
+          · refine votedForIn_monotonic sent sent' h_sent_monotonic ?_
+            rw [h_same_accptor] at *
+            exact max_prop_not_empty_implies_voted_for sent hr
+          · have h_not_voted_for_greater_ballots :
+                ∀ (b' : Ballot), rbal + 1 ≤ b' → b' < mbal → ∀ (x : Value),
+                ¬VotedForIn sent a x b' := by
+              rw [h_same_accptor] at hr
+              have h_not_voted_for_greater_ballots :=
+                max_prop_implies_not_voted_for_greater_ballots sent hr
+              intro b' hb_lower hb_upper x
+              specialize h_not_voted_for_greater_ballots b' x hb_lower
+              simp [h_same_accptor]; exact h_not_voted_for_greater_ballots
+            -- I think the goal is clear enough but for the following:
+            -- simp [h_not_voted_for_greater_ballots, h_votedForIn_same] didn't work.
+            exact fun b' a_1 a_2 x =>
+              (fun {a b} ha => (iff_false_left ha).mp)
+                (h_not_voted_for_greater_ballots b' a_1 a_2 x) (h_votedForIn_same a x b')
+        -- TODO: The following part is repetitive, as I copied this from the 1a case
+        -- and just changes a few things. How to get rid of this repetition?
+      · have h_m'_in_sent : m' ∈ sent := by
+          simp [*] at *; simp [h_m_eq_oneb] at hm'; exact hm'
+        cases hm' : m' with
+        | onea b1 => simp
+        | oneb b1 maxVBal maxVal a1 =>
+          simp at hInv; simp [-Send]
+          match maxVBal, maxVal with
           | none, none =>
-            simp; rw [←h_same_accptor] at hr
-            intro b hb_upper
-            have h_not_voted_in_sent :=
-              max_prop_empty_implies_not_voted_in_prev_ballots sent hr b
-            exact fun x =>
-              (fun {a b} ha => (iff_false_left ha).mp) (h_not_voted_in_sent x)
-                (h_votedForIn_same a x b)
-          | some rbal, some rval =>
             simp
-            constructor
-            · refine votedForIn_monotonic sent sent' h_sent_monotonic ?_
-              rw [h_same_accptor] at *
-              exact max_prop_not_empty_implies_voted_for sent hr
-            · have h_not_voted_for_greater_ballots :
-                  ∀ (b' : Ballot), rbal + 1 ≤ b' → b' < mbal → ∀ (x : Value),
-                  ¬VotedForIn sent a x b' := by
-                rw [h_same_accptor] at hr
-                have h_not_voted_for_greater_ballots :=
-                  max_prop_implies_not_voted_for_greater_ballots sent hr
-                intro b' hb_lower hb_upper x
-                specialize h_not_voted_for_greater_ballots b' x hb_lower
-                simp [h_same_accptor]; exact h_not_voted_for_greater_ballots
-              -- I think the goal is clear enough but for the following:
-              -- simp [h_not_voted_for_greater_ballots, h_votedForIn_same] didn't work.
-              exact fun b' a_1 a_2 x =>
-                (fun {a b} ha => (iff_false_left ha).mp)
-                  (h_not_voted_for_greater_ballots b' a_1 a_2 x) (h_votedForIn_same a x b')
-         -- TODO: The following part is repetitive, as I copied this from the 1a case
-         -- and just changes a few things. How to get rid of this repetition?
-        · have h_m'_in_sent : m' ∈ sent := by
-            simp [*] at *; simp [h_m_eq_oneb] at hm'; exact hm'
-          cases hm' : m' with
-          | onea b1 => simp
-          | oneb b1 maxVBal maxVal a1 =>
-            simp at hInv; simp [-Send]
-            match maxVBal, maxVal with
-            | none, none =>
-              simp
-              specialize hInv m' h_m'_in_sent; simp [hm'] at hInv;
-              exact fun b' a x =>
-                (fun {a b} ha => (iff_false_left ha).mp)
-                  (hInv b' a x) (h_votedForIn_same a1 x b')
-            | some maxVBal, none | none, some maxVal =>
-              simp;
-              specialize hInv m' h_m'_in_sent
-              simp [hm'] at hInv;
-            | some maxVBal, some maxVal =>
-              simp [-Send]; specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
-              refine And.intro ?_ ?_
-              · rw [←h_votedForIn_same]; exact hInv.left
-              · intro b' hb_lower hb_upper x
-                have h_not_voted := hInv.right
-                specialize h_not_voted b'
-                simp [hb_lower, hb_upper] at h_not_voted
-                specialize h_not_voted x
-                unfold VotedForIn at *
-                simp [hmatch]; simp at h_not_voted; exact h_not_voted
-          | twoa b1 v1 =>
-            simp at hInv; simp [-Send]
-            specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
+            specialize hInv m' h_m'_in_sent; simp [hm'] at hInv;
+            exact fun b' a x =>
+              (fun {a b} ha => (iff_false_left ha).mp)
+                (hInv b' a x) (h_votedForIn_same a1 x b')
+          | some maxVBal, none | none, some maxVal =>
+            simp;
+            specialize hInv m' h_m'_in_sent
+            simp [hm'] at hInv;
+          | some maxVBal, some maxVal =>
+            simp [-Send]; specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
             refine And.intro ?_ ?_
-            · exact SafeAtStable_Phase1b sent sent' Quorums h1b_copy hInv.left
-            · have h_inv_right := hInv.right
-              intro m2 h_m2_in_sent'
-              specialize h_inv_right m2
-              cases m2 <;>  simp [*] at *;
-                            apply h_inv_right at h_m2_in_sent';
-                            exact h_m2_in_sent'
-          | twob b1 v1 a1 =>
-            match b1, v1 with
-            | none, none | some b1, none | none, some v1 => simp;
-            | some b1, some v1 =>
-              simp
-              specialize hInv m' h_m'_in_sent
-              simp [hm'] at hInv
-              exact h_sent_monotonic hInv
-      · rw [hmatch]; exact hInv
+            · rw [←h_votedForIn_same]; exact hInv.left
+            · intro b' hb_lower hb_upper x
+              have h_not_voted := hInv.right
+              specialize h_not_voted b'
+              simp [hb_lower, hb_upper] at h_not_voted
+              specialize h_not_voted x
+              unfold VotedForIn at *
+              simp [hmatch]; simp at h_not_voted; exact h_not_voted
+        | twoa b1 v1 =>
+          simp at hInv; simp [-Send]
+          specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
+          refine And.intro ?_ ?_
+          · exact SafeAtStable_Phase1b sent sent' Quorums h1b_copy hInv.left
+          · have h_inv_right := hInv.right
+            intro m2 h_m2_in_sent'
+            specialize h_inv_right m2
+            cases m2 <;>  simp [*] at *;
+                          apply h_inv_right at h_m2_in_sent';
+                          exact h_m2_in_sent'
+        | twob b1 v1 a1 =>
+          match b1, v1 with
+          | none, none | some b1, none | none, some v1 => simp;
+          | some b1, some v1 =>
+            simp
+            specialize hInv m' h_m'_in_sent
+            simp [hm'] at hInv
+            exact h_sent_monotonic hInv
     | _ => simp [*] at *
   | _ => simp [*] at *
 

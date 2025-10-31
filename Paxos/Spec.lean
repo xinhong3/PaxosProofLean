@@ -72,12 +72,11 @@ def Phase1b (a : Acceptor) : Prop :=
   ∃ m ∈ sent, ∃r ∈ max_prop sent a,
     match m, r with
     | Message.onea b, Message.twob rbal rval _a =>
-       if (∀m2 ∈ sent, match m2 with
+         (∀m2 ∈ sent, match m2 with
        | Message.oneb b2 _ _ a' => (a' = a) → (b > b2)
        | Message.twob b2 _ a' => (a' = a) → (b > b2)
        | _ => True)
-       then sent' = Send (Message.oneb b rbal rval a) sent
-       else sent' = sent
+       ∧ sent' = Send (Message.oneb b rbal rval a) sent
     | _, _ => False
 
 /-- Phase 2a. Same as in TLA except using pattern matching and conditional (`if-else`).
