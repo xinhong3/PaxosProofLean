@@ -41,11 +41,10 @@ inductive Message where
 variable (Quorums: Set (Set Acceptor)) -- Quorums is a set of sets of acceptors
 axiom QuorumAssumption (h1: Q₁ ∈ Quorums) (h2: Q₂ ∈ Quorums): Q₁ ∩ Q₂ ≠ ∅
 
---  History variable `sent`.
---! An extra variable `sent'` is added to represent the 'primed' variable in TLA.
+/- History variable `sent`, and added primed variable to represent the next state. -/
 variable (sent sent': Set Message)
 
-/-- Definition of `Send`. Same as in TLA. -/
+/-- Definition of `Send`. -/
 @[simp]
 def Send (m : Message) (sent : Set Message) : Set Message := sent ∪ {m}
 
