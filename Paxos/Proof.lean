@@ -35,13 +35,10 @@ lemma VotedOnce
     (h_voted_1: VotedForIn sent a1 v1 b)
     (h_voted_2: VotedForIn sent a2 v2 b) : v1 = v2 := by
   unfold VotedForIn MsgInv at *
-
   have h_exists_2a_with_v1 : Message.twoa b v1 ∈ sent := by
     simp at h_voted_1; apply hInv at h_voted_1; simp at h_voted_1; exact h_voted_1
-
   have h_exists_2a_with_v2 : Message.twoa b v2 ∈ sent := by
     simp at h_voted_2; apply hInv at h_voted_2; simp at h_voted_2; exact h_voted_2
-
   apply hInv at h_exists_2a_with_v1; simp at h_exists_2a_with_v1
   apply h_exists_2a_with_v1.right at h_exists_2a_with_v2; simp at h_exists_2a_with_v2
   exact h_exists_2a_with_v2.symm
@@ -58,7 +55,7 @@ lemma SafeAtStable_Phase1a
   rcases hSafe with ⟨Q, h_Q_in_Quorums, h_Q_safe⟩
   -- Prove that both `VotedForIn` and `WontVoteIn` are preserved from `sent` to `sent'`
   have hV : ∀ a ∈ Q, VotedForIn sent a v b2 → VotedForIn sent' a v b2 :=
-    fun a a_1 a_2 => votedForIn_monotonic sent sent' (send_monotonic h1a) a_2
+    fun a a_1 a_2 ↦ votedForIn_monotonic sent sent' (send_monotonic h1a) a_2
   have hW : ∀ a ∈ Q, WontVoteIn sent a b2 → WontVoteIn sent' a b2 := by
     intro A hA hWont
     unfold WontVoteIn at *
@@ -84,7 +81,7 @@ lemma SafeAtStable_Phase1b
   specialize hSafe b2 hxb                         -- apply `b2` to `hSafe`
   rcases hSafe with ⟨Q, h_Q_in_Quorums, hAllVotedOrWontVote⟩
   have hV : ∀ a ∈ Q, VotedForIn sent a v b2 → VotedForIn sent' a v b2 := by
-    exact fun a a_1 a_2 => votedForIn_monotonic sent sent' h_sent_monotonic a_2
+    exact fun a a_1 a_2 ↦ votedForIn_monotonic sent sent' h_sent_monotonic a_2
   have hW : ∀ a ∈ Q, WontVoteIn sent a b2 → WontVoteIn sent' a b2 := by
     intro A hA hWont
     unfold WontVoteIn at *
@@ -124,7 +121,7 @@ lemma SafeAtStable_Phase2a
   rcases hSafe with ⟨Q, h_Q_in_Quorums, h_Q_safe⟩
   -- Prove that both `VotedForIn` and `WontVoteIn` are preserved from `sent` to `sent'`
   have hV : ∀ a ∈ Q, VotedForIn sent a v b2 → VotedForIn sent' a v b2 := by
-    exact fun a a_1 a_2 => votedForIn_monotonic sent sent' h_sent_monotonic a_2
+    exact fun a a_1 a_2 ↦ votedForIn_monotonic sent sent' h_sent_monotonic a_2
   have hW : ∀ a ∈ Q, WontVoteIn sent a b2 → WontVoteIn sent' a b2 := by
     intro A hA hWont
     unfold WontVoteIn at *
@@ -154,7 +151,7 @@ lemma SafeAtStable_Phase2b
   rcases hSafe with ⟨Q, h_Q_in_Quorums, h_Q_safe⟩
   -- Prove that both `VotedForIn` and `WontVoteIn` are preserved from `sent` to `sent'`
   have hV : ∀ a ∈ Q, VotedForIn sent a v b2 → VotedForIn sent' a v b2 := by
-    exact fun a a_1 a_2 => votedForIn_monotonic sent sent' h_sent_monotonic a_2
+    exact fun a a_1 a_2 ↦ votedForIn_monotonic sent sent' h_sent_monotonic a_2
   have hW : ∀ a ∈ Q, WontVoteIn sent a b2 → WontVoteIn sent' a b2 := by
     intro A hA hWont
     unfold WontVoteIn at *
@@ -169,22 +166,18 @@ lemma SafeAtStable_Phase2b
             rcases hWont with ⟨_, ⟨m_1b_2b, hm_sent, hm_match⟩⟩
             let m_1b_2b_c := m_1b_2b
             cases m_1b_2b with
-            | oneb bb maxVBal_ maxVal_ a1  =>
-                simp at hm_match
-                have hmatch_left := hmatch.left
-                specialize hmatch_left (Message.oneb bb maxVBal_ maxVal_ a1) hm_sent
-                simp at hmatch_left
-                simp [hm_match.left, ha] at hmatch_left
-                refine ne_of_lt (lt_of_lt_of_le hm_match.right hmatch_left)
-            | twob bb val_ a1 =>
-                simp at hm_match
-                have hmatch_left := hmatch.left
-                specialize hmatch_left (Message.twob bb val_ a1) hm_sent
-                simp at hmatch_left
-                simp [hm_match.left, ha] at hmatch_left
-                match bb with
-                | none    => simp at *
-                | some bb => exact ne_of_lt (lt_of_lt_of_le hm_match.right hmatch_left)
+            | oneb bb _ _ a1 | twob bb _ a1 =>
+              -- consolidate the two cases since they overlap a lot
+              all_goals
+              simp at hm_match
+              have hle := hmatch.left m_1b_2b_c hm_sent
+              simp [hm_match.left, ha, m_1b_2b_c] at hle
+              -- oneb case
+              try exact ne_of_lt (lt_of_lt_of_le hm_match.right hle)
+              -- twob case, we need an extra step to break down bb which is an `Option`
+              try cases bb with
+                | none    => simp_all
+                | some bb => exact ne_of_lt (lt_of_lt_of_le hm_match.right hle)
             | _ => simp [*] at *
           intro V hVoted
           let hNotVotedPrev := hWont.left
@@ -325,8 +318,8 @@ lemma phase1b_is_inductive
           intro b hb_upper
           have h_not_voted_in_sent :=
             max_prop_empty_implies_not_voted_in_prev_ballots sent hr b
-          exact fun x =>
-            (fun {a b} ha => (iff_false_left ha).mp) (h_not_voted_in_sent x)
+          exact fun x ↦
+            (fun {a b} ha ↦ (iff_false_left ha).mp) (h_not_voted_in_sent x)
               (h_votedForIn_same a x b)
         | some rbal, some rval =>
           simp
@@ -345,8 +338,8 @@ lemma phase1b_is_inductive
               simp [h_same_accptor]; exact h_not_voted_for_greater_ballots
             -- I think the goal is clear enough but for the following:
             -- simp [h_not_voted_for_greater_ballots, h_votedForIn_same] didn't work.
-            exact fun b' a_1 a_2 x =>
-              (fun {a b} ha => (iff_false_left ha).mp)
+            exact fun b' a_1 a_2 x ↦
+              (fun {a b} ha ↦ (iff_false_left ha).mp)
                 (h_not_voted_for_greater_ballots b' a_1 a_2 x) (h_votedForIn_same a x b')
         -- TODO: The following part is repetitive, as I copied this from the 1a case
         -- and just changes a few things. How to get rid of this repetition?
@@ -360,8 +353,8 @@ lemma phase1b_is_inductive
           | none, none =>
             simp
             specialize hInv m' h_m'_in_sent; simp [hm'] at hInv;
-            exact fun b' a x =>
-              (fun {a b} ha => (iff_false_left ha).mp)
+            exact fun b' a x ↦
+              (fun {a b} ha ↦ (iff_false_left ha).mp)
                 (hInv b' a x) (h_votedForIn_same a1 x b')
           | some maxVBal, none | none, some maxVal =>
             simp;
@@ -894,6 +887,6 @@ theorem Agreement {σ : ℕ → Set Message}
   have inv : ∀ n, MsgInv (σ n) Quorums := by
     intro n
     exact Invariant Quorums hSpec n
-  exact fun n => msginv_implies_agree (σ n) Quorums (inv n)
+  exact fun n ↦ msginv_implies_agree (σ n) Quorums (inv n)
 
 end Paxos.Proof
