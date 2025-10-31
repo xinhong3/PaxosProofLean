@@ -72,11 +72,11 @@ def Phase1b (a : Acceptor) : Prop :=
   ∃ m ∈ sent, ∃r ∈ max_prop sent a,
     match m, r with
     | Message.onea b, Message.twob rbal rval _a =>
-         (∀m2 ∈ sent, match m2 with
-       | Message.oneb b2 _ _ a' => (a' = a) → (b > b2)
-       | Message.twob b2 _ a' => (a' = a) → (b > b2)
-       | _ => True)
-       ∧ sent' = Send (Message.oneb b rbal rval a) sent
+        (∀m2 ∈ sent, match m2 with
+                      | Message.oneb b2 _ _ a' => (a' = a) → (b > b2)
+                      | Message.twob b2 _ a' => (a' = a) → (b > b2)
+                      | _ => True)
+        ∧ sent' = Send (Message.oneb b rbal rval a) sent
     | _, _ => False
 
 /-- Phase 2a. Same as in TLA except using pattern matching and conditional (`if-else`).
@@ -84,11 +84,10 @@ def Phase1b (a : Acceptor) : Prop :=
      `Classical.choose` to pick `v` from the existential statement.
 -/
 def Phase2a (b : Ballot) : Prop :=
-  if (¬∃ m ∈ sent, match m with
+  (¬∃ m ∈ sent, match m with
                 | Message.twoa b' _ => b' = b
                 | _                 => False)
-  then if φ :
-      ∃ (v : Value) (Q : Set Acceptor) (S : Set Message), Q ∈ Quorums ∧
+  ∧ ∃ (v : Value) (Q : Set Acceptor) (S : Set Message), Q ∈ Quorums ∧
       S ⊆ { m ∈ sent | match m with | Message.oneb b' _ _ _ => b' = b | _ => False}
         ∧ (∀ a ∈ Q, ∃ m ∈ S, match m with | Message.oneb _ _ _ a' => a' = a | _ => False)
         ∧ ((∀ m ∈ S, match m with
@@ -101,21 +100,18 @@ def Phase2a (b : Ballot) : Prop :=
               ∧ (∃ m ∈ S, match m with
                           | Message.oneb _ maxVBal maxVal _ => maxVBal = c ∧ maxVal = v
                           | _ => False))
-        then let v := Classical.choose φ; sent' = Send (Message.twoa b v) sent
-    else sent' = sent
-  else sent' = sent
+        ∧ sent' = Send (Message.twoa b v) sent
 
 /-- Phase 2b. Same as in TLA. -/
-def Phase2b (a : Acceptor) : Prop := ∃ m ∈ sent,
-  match m with
-  | Message.twoa b v =>
-      if (∀ m2 ∈ sent, match m2 with
-         | Message.oneb b2 _ _ a' => a' = a → b ≥ b2
-         | Message.twob b2 _ a' => a' = a → b ≥ b2
-         | _ => True)
-      then sent' = Send (Message.twob b v a) sent
-      else sent' = sent
-  | _ => sent' = sent
+def Phase2b (a : Acceptor) : Prop :=
+  ∃ m ∈ sent, match m with
+              | Message.twoa b v =>
+                  (∀ m2 ∈ sent, match m2 with
+                                | Message.oneb b2 _ _ a' => a' = a → b ≥ b2
+                                | Message.twob b2 _ a' => a' = a → b ≥ b2
+                                | _ => True)
+                  ∧ sent' = Send (Message.twob b v a) sent
+              | _ => False
 
 /-- Init. Same as in TLA. -/
 def Init : Prop := sent = ∅

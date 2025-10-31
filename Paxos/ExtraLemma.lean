@@ -173,14 +173,7 @@ lemma phase1b_imp_mono_sent {a: Acceptor}
                             (hPhase1b: Phase1b sent sent' a) : sent ⊆ sent' := by
   unfold Phase1b at hPhase1b
   rcases hPhase1b with ⟨m, hm, r, hr, hmatch⟩
-  cases m with
-  | onea mbal =>
-    cases r with
-    | twob rbal rvbal racc =>
-      simp at hmatch
-      simp [hmatch]
-    | _ => simp at hmatch;
-  | _ => simp at hmatch;
+  cases m <;> cases r <;> simp at hmatch; simp [hmatch]
 
 /-- Effort: 5m
     `Phase2a` grows `sent` monotonically.
@@ -189,7 +182,8 @@ lemma phase1b_imp_mono_sent {a: Acceptor}
 lemma phase2a_imp_mono_sent {b: Ballot}
                             (hPhase2a: Phase2a Quorums sent sent' b) : sent ⊆ sent' := by
   unfold Phase2a at hPhase2a
-  split_ifs at hPhase2a with h1 h2 <;> simp [hPhase2a]
+  rcases hPhase2a with ⟨h_no_2a, ⟨_, _, _, h_rest⟩⟩
+  simp [h_rest]
 
 /-- Effort: 5m
     `Phase2b` grows `sent` monotonically.
@@ -199,11 +193,7 @@ lemma phase2b_imp_mono_sent {a: Acceptor}
                             (hPhase2b: Phase2b sent sent' a) : sent ⊆ sent' := by
   unfold Phase2b at hPhase2b
   rcases hPhase2b with ⟨m2b, hm2b, hmatch⟩
-  cases m2b with
-  | twoa mbal mval =>
-    simp at hmatch
-    split_ifs at hmatch with hpos <;> simp [hmatch]
-  | _ => simp [hmatch];
+  cases m2b <;> simp at hmatch; simp [hmatch]
 
 /--  Effort: 3m
     `sent` grows monotonically with `Next`.
