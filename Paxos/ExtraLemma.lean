@@ -1,6 +1,5 @@
-/-
-  Lean translation of Paxos. Lemmas for making the proof easier later.
-  The lemmas here are not in TLA: https://arxiv.org/pdf/1802.09687
+/- Extra lemmas used to simplify the safety proof.
+   These are not present in the TLAPS proof in https://arxiv.org/pdf/1802.09687.
 -/
 import Paxos.Spec
 import Paxos.Prop
@@ -50,9 +49,9 @@ lemma option.some_succ_le_some_of_some_le_and_lt {n m k : Ballot}
     The messages in max_prop are of type `twob`.
 -/
 @[simp]
-theorem mem_max_prop_is_twob {m : Message} {a : Acceptor}:
-    m ∈ max_prop sent a → ∃ (b : Option Ballot) (v : Option Value),
-                          m = Message.twob b v a := by
+theorem mem_max_prop_is_twob {m : Message} {a : Acceptor} :
+    m ∈ max_prop sent a →
+      ∃ (b : Option Ballot) (v : Option Value), m = Message.twob b v a := by
   dsimp [max_prop] at *
   split_ifs with h_nonempty
   · simp
@@ -68,7 +67,8 @@ theorem mem_max_prop_is_twob {m : Message} {a : Acceptor}:
 -/
 @[simp]
 theorem max_prop_not_empty_implies_voted_for {a : Acceptor} {b : Ballot} {v : Value} :
-    Message.twob b (some v) a ∈ max_prop sent a → VotedForIn sent a v b := by
+    Message.twob b (some v) a ∈ max_prop sent a →
+      VotedForIn sent a v b := by
   intro h_mem
   unfold max_prop at h_mem
   simp at h_mem
@@ -200,7 +200,8 @@ lemma phase2b_imp_mono_sent {a: Acceptor}
     `sent` grows monotonically with `Next`.
     This is used in the proof of `SafeAtStable`. -/
 @[simp]
-lemma next_imp_mono_sent (hNext: Next Quorums sent sent') : sent ⊆ sent' := by
+lemma next_imp_mono_sent
+    (hNext: Next Quorums sent sent') : sent ⊆ sent' := by
   unfold Next at hNext
   rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
   · exact phase1a_imp_mono_sent sent sent' hPhase1a
@@ -240,17 +241,15 @@ lemma send_add_non_twob_preserves_no_vote {a: Acceptor} {b: Ballot} {m: Message}
                 cases hVoted with
                 | inl h_m_eq_2b => cases m <;> simp [*] at *
                 | inr h_2b_in_sent => simp [h_2b_in_sent] at hnv;
-  | inr h_1b_2a => cases h_1b_2a with
-                   | inl h_1b =>  specialize hnv v
-                                  unfold VotedForIn at *
-                                  simp [hsend] at hVoted
-                                  cases hVoted <;> cases m <;> simp [*] at *
-                   | inr h_2a =>  specialize hnv v
-                                  unfold VotedForIn at *
-                                  simp [hsend] at hVoted
-                                  cases hVoted <;> cases m <;> simp [*] at *
+  | inr h_1b_2a =>  cases h_1b_2a with
+                    | inl h_1b | inr h_2a =>
+                        all_goals
+                        specialize hnv v
+                        unfold VotedForIn at *
+                        simp [hsend] at hVoted
+                        cases hVoted <;> cases m <;> simp [*] at *
 
-/-- Effort: 5m
+/-- Effort: 20m
     Corresponds to the monotonicity of existantial quantifier describe in the TLAPS proof.
     We combine this lemma with previous monotonic results to show some property `P` of
     the history variable holds inductively.

@@ -1,6 +1,6 @@
 /- Basic Paxos specification, translated from the spec in TLA+
    in https://arxiv.org/pdf/1802.09687, Appendix A, by Chand and Liu, referred to as CL.
-  ! indicates the differences of this spec from the spec in CL
+   ! indicates the differences of this spec from the spec in CL
 -/
 import Mathlib.Tactic
 
