@@ -25,11 +25,11 @@ def Chosen (v : Value) : Prop :=
 
 /-- Same as in TLA. Except for pattern matching. -/
 def WontVoteIn (a : Acceptor) (b : Ballot) : Prop :=
-     (∀ v : Value, ¬VotedForIn sent a v b)
-   ∧ (∃ m ∈ sent, match m with
-                  | Message.oneb b' _ _ a' => a' = a ∧ b' > b
-                  | Message.twob b' _ a'   => a' = a ∧ b' > b
-                  | _                      => false)
+  (∀ v : Value, ¬VotedForIn sent a v b)
+  ∧ (∃ m ∈ sent, match m with
+                 | Message.oneb b' _ _ a' => a' = a ∧ b' > b
+                 | Message.twob b' _ a'   => a' = a ∧ b' > b
+                 | _                      => false)
 
 /-- Same as in TLA. -/
 def SafeAt (v : Value) (b : Ballot) : Prop :=
