@@ -216,7 +216,7 @@ theorem SafeAtStable {v: Value} {b: Ballot}
 
 
 /-- Effort: 60m -/
-lemma phase1a_is_inductive
+lemma msginv_is_inductive_phase1a
     (hInv: MsgInv sent Quorums)
     (h1a: Phase1a sent sent' b) : MsgInv sent' Quorums := by
   have h_sent_monotonic : sent ⊆ sent' := by
@@ -277,7 +277,7 @@ lemma phase1a_is_inductive
                   `max_prop_not_empty_implies_voted_for`,
                   `max_prop_implies_not_voted_for_greater_ballots`)
 -/
-lemma phase1b_is_inductive
+lemma msginv_is_inductive_phase1b
     (hInv: MsgInv sent Quorums)
     (h1b: Phase1b sent sent' a) : MsgInv sent' Quorums := by
   have h1b_copy := h1b
@@ -386,15 +386,15 @@ lemma phase1b_is_inductive
             specialize hInv m' h_m'_in_sent
             simp [hm'] at hInv
             exact h_sent_monotonic hInv
-    | _ => simp [*] at *
-  | _ => simp [*] at *
+    | _ => simp at hmatch
+  | _ => simp at hmatch
 
 /-- Effort: 11h30m
           = 1h30m: laying out the skeleton of the proof (chores). See Proof.lean at 2e129a
           + 10hr:  trying to finish the part that's left but spotted an error in Spec and
                      MsgInv (see 03c98fe). The time includes fixing the spec.
 -/
-lemma phase2a_is_inductive
+lemma msginv_is_inductive_phase2a
     (hInv: MsgInv sent Quorums)
     (h2a: Phase2a Quorums sent sent' b) : MsgInv sent' Quorums := by
   have h2a_copy := h2a
@@ -697,7 +697,7 @@ lemma phase2a_is_inductive
           = 30m (writing the proof skeleton, pending on m' being a 1b message)
           + 30m (rest of the proof, LLM helped a little)
 -/
-lemma phase2b_is_inductive
+lemma msginv_is_inductive_phase2b
     (hInv: MsgInv sent Quorums)
     (h2b: Phase2b sent sent' a) : MsgInv sent' Quorums := by
   have h2b_copy := h2b
@@ -791,10 +791,10 @@ theorem msginv_is_inductive_under_next
     (hNext: Next Quorums sent sent') : MsgInv sent' Quorums := by
   unfold Next at hNext
   rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
-  · exact phase1a_is_inductive sent sent' Quorums hInv hPhase1a
-  · exact phase2a_is_inductive sent sent' Quorums hInv hPhase2a
-  · exact phase1b_is_inductive sent sent' Quorums hInv hPhase1b
-  · exact phase2b_is_inductive sent sent' Quorums hInv hPhase2b
+  · exact msginv_is_inductive_phase1a sent sent' Quorums hInv hPhase1a
+  · exact msginv_is_inductive_phase2a sent sent' Quorums hInv hPhase2a
+  · exact msginv_is_inductive_phase1b sent sent' Quorums hInv hPhase1b
+  · exact msginv_is_inductive_phase2b sent sent' Quorums hInv hPhase2b
 
 /-- Effort: 60m
     Used in theorem Agreement. Too long to fit in Agreement,
