@@ -8,16 +8,13 @@ import Paxos.ExtraLemma
 namespace Paxos.Proof
 open Paxos.Spec Paxos.Prop Paxos.ExtraLemma
 
--- Re-introduce variables --
 variable (sent sent' : Set Message)
 variable (Quorums : Set (Set Acceptor))
 
--- Setting a higher heartbeat limit (timeout) for simp.
+-- Setting a higher heartbeat limit for simp.
 set_option maxHeartbeats 1000000
 
-/-- Effort: 10m
-    Same as `VotedInv` in the TLAPS proof.
--/
+/-- lemma VotedInv in TLAPS. -/
 lemma VotedInv (h1: MsgInv sent Quorums) :
     ∀ a v b, VotedForIn sent a v b → SafeAt sent Quorums v b := by
   unfold MsgInv VotedForIn at *
@@ -26,9 +23,7 @@ lemma VotedInv (h1: MsgInv sent Quorums) :
   apply h1 at h; simp at h
   exact h.left
 
-/-- Effort: 20m
-    Same as `VotedOnce` in the TLAPS proof.
--/
+/-- lemma VotedOnce in TLAPS. -/
 lemma VotedOnce
     (hInv: MsgInv sent Quorums)
     (h_voted_1: VotedForIn sent a1 v1 b)
@@ -44,8 +39,7 @@ lemma VotedOnce
 
 -- The following four lemmas show that `SafeAt` is inductive over all four phases.
 
-/-- Effort: 30m -/
-lemma SafeAtStable_Phase1a
+lemma safe_at_is_inductive_phase1a
     (h1a: Phase1a sent sent' b')
     (hSafe: SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
   unfold SafeAt at *
@@ -70,8 +64,7 @@ lemma SafeAtStable_Phase1a
     | inl hVoted => left; exact hV A ha hVoted
     | inr hWont => right; exact hW A ha hWont
 
-/-- Effort: 2hr (mainly was finding tactics) -/
-lemma SafeAtStable_Phase1b
+lemma safe_at_is_inductive_phase1b
     (h1b: Phase1b sent sent' a)
     (hSafe: SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
   unfold SafeAt at *
@@ -106,10 +99,7 @@ lemma SafeAtStable_Phase1b
     | inl hVotedInPrev => exact Or.inl (hV hVotedInPrev)
     | inr hWontVoteInPrev => exact Or.inr (hW A ha hWontVoteInPrev)
 
-/-- Effort: 30m
-    Not a lot different from `SafeAtStable_Phase1b`.
--/
-lemma SafeAtStable_Phase2a
+lemma safe_at_is_inductive_phase2a
     (h2a: Phase2a Quorums sent sent' b')
     (hSafe: SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
   have h_sent_monotonic : sent ⊆ sent' := by exact phase2a_imp_mono_sent Quorums sent sent' h2a
@@ -138,8 +128,7 @@ lemma SafeAtStable_Phase2a
     | inl hVotedInPrev => exact Or.inl (hV hVotedInPrev);
     | inr hWontVoteInPrev => exact Or.inr (hW A ha hWontVoteInPrev)
 
-/-- Effort: 180m -/
-lemma SafeAtStable_Phase2b
+lemma safe_at_is_inductive_phase2b
     (h2b: Phase2b sent sent' a)
     (hSafe: SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
   have h_sent_monotonic : sent ⊆ sent' := by exact phase2b_imp_mono_sent sent sent' h2b
@@ -201,21 +190,19 @@ lemma SafeAtStable_Phase2b
     | inl hVotedInPrev => exact Or.inl (hV hVotedInPrev);
     | inr hWontVoteInPrev => exact Or.inr (hW A ha hWontVoteInPrev)
 
-/-- Effort: 10m (directly from the lemmas)
-    Same as `SafeAtStable` in the TLAPS proof.
--/
-theorem SafeAtStable {v: Value} {b: Ballot}
+/-- lemma SafeAtStable in TLAPS. -/
+lemma SafeAtStable {v: Value} {b: Ballot}
     (hNext : Next Quorums sent sent')
     (hSafe : SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
   unfold Next at hNext
   rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
-  · exact SafeAtStable_Phase1a sent sent' Quorums hPhase1a hSafe
-  · exact SafeAtStable_Phase2a sent sent' Quorums hPhase2a hSafe
-  · exact SafeAtStable_Phase1b sent sent' Quorums hPhase1b hSafe
-  · exact SafeAtStable_Phase2b sent sent' Quorums hPhase2b hSafe
+  · exact safe_at_is_inductive_phase1a sent sent' Quorums hPhase1a hSafe
+  · exact safe_at_is_inductive_phase2a sent sent' Quorums hPhase2a hSafe
+  · exact safe_at_is_inductive_phase1b sent sent' Quorums hPhase1b hSafe
+  · exact safe_at_is_inductive_phase2b sent sent' Quorums hPhase2b hSafe
 
+-- The following four lemmas show that `MsgInv` is inductive over all four phases.
 
-/-- Effort: 60m -/
 lemma msginv_is_inductive_phase1a
     (hInv: MsgInv sent Quorums)
     (h1a: Phase1a sent sent' b) : MsgInv sent' Quorums := by
@@ -260,7 +247,7 @@ lemma msginv_is_inductive_phase1a
       simp at hInv; simp [-Send]
       rw [←h1a]
       apply And.intro
-      · exact SafeAtStable_Phase1a sent sent' Quorums h1a_copy hInv.left
+      · exact safe_at_is_inductive_phase1a sent sent' Quorums h1a_copy hInv.left
       · have h_inv_right := hInv.right
         intro m2 h_m2_in_sent'
         specialize h_inv_right m2
@@ -270,13 +257,6 @@ lemma msginv_is_inductive_phase1a
       | some b1, some v1 => simp [hInv]
       | none, some v1 | some b1, none | none, none => simp;
 
-/-- Effort: 155m
-          = 5m (writing the proof skeleton)
-          + 30m (figuring out how to get rid of the universal quantifier in MsgInv)
-          + 120m (finishing the rest of the proof, including proving two lemmas:
-                  `max_prop_not_empty_implies_voted_for`,
-                  `max_prop_implies_not_voted_for_greater_ballots`)
--/
 lemma msginv_is_inductive_phase1b
     (hInv: MsgInv sent Quorums)
     (h1b: Phase1b sent sent' a) : MsgInv sent' Quorums := by
@@ -371,7 +351,7 @@ lemma msginv_is_inductive_phase1b
           simp at hInv; simp [-Send]
           specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
           apply And.intro
-          · exact SafeAtStable_Phase1b sent sent' Quorums h1b_copy hInv.left
+          · exact safe_at_is_inductive_phase1b sent sent' Quorums h1b_copy hInv.left
           · have h_inv_right := hInv.right
             intro m2 h_m2_in_sent'
             specialize h_inv_right m2
@@ -389,11 +369,6 @@ lemma msginv_is_inductive_phase1b
     | _ => simp at hmatch
   | _ => simp at hmatch
 
-/-- Effort: 11h30m
-          = 1h30m: laying out the skeleton of the proof (chores). See Proof.lean at 2e129a
-          + 10hr:  trying to finish the part that's left but spotted an error in Spec and
-                     MsgInv (see 03c98fe). The time includes fixing the spec.
--/
 lemma msginv_is_inductive_phase2a
     (hInv: MsgInv sent Quorums)
     (h2a: Phase2a Quorums sent sent' b) : MsgInv sent' Quorums := by
@@ -612,7 +587,7 @@ lemma msginv_is_inductive_phase2a
                   simp only [h_m2_in_sent]
                   simp [h_m2_is_oneb.2, hm2_match, h_b2_less_than_b]
                 | _ => exfalso; simp at hm2_match;
-      exact SafeAtStable_Phase2a sent sent' Quorums h2a_copy h_safe_at_prev
+      exact safe_at_is_inductive_phase2a sent sent' Quorums h2a_copy h_safe_at_prev
     -- unique proposal
     · intro m2 h_m2_in_sent'
       by_cases h_m2_in_sent : m2 ∈ sent
@@ -660,7 +635,7 @@ lemma msginv_is_inductive_phase2a
       simp at hInv; simp [-Send]
       specialize hInv m' hm_sent'; simp [hm'] at hInv
       apply And.intro
-      · exact SafeAtStable_Phase2a sent sent' Quorums h2a_copy hInv.left
+      · exact safe_at_is_inductive_phase2a sent sent' Quorums h2a_copy hInv.left
       · have h_inv_right := hInv.right
         intro m2 h_m2_in_sent'
         specialize h_inv_right m2
@@ -693,10 +668,6 @@ lemma msginv_is_inductive_phase2a
         simp [hm'] at hInv
         exact h_sent_monotonic hInv
 
-/-- Effort: 60m
-          = 30m (writing the proof skeleton, pending on m' being a 1b message)
-          + 30m (rest of the proof, LLM helped a little)
--/
 lemma msginv_is_inductive_phase2b
     (hInv: MsgInv sent Quorums)
     (h2b: Phase2b sent sent' a) : MsgInv sent' Quorums := by
@@ -763,7 +734,7 @@ lemma msginv_is_inductive_phase2b
           simp at hInv; simp [-Send]
           specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
           apply And.intro
-          · exact SafeAtStable_Phase2b sent sent' Quorums h2b_copy hInv.left
+          · exact safe_at_is_inductive_phase2b sent sent' Quorums h2b_copy hInv.left
           · have h_inv_right := hInv.right
             intro m2 h_m2_in_sent'
             specialize h_inv_right m2
@@ -783,23 +754,31 @@ lemma msginv_is_inductive_phase2b
       exact h_sent_monotonic h_2a_sent
   | _ => simp [*] at *
 
-/-- Effort: 5m
-    Used in theorem Invariant.
--/
-theorem msginv_is_inductive_under_next
-    (hInv: MsgInv sent Quorums)
-    (hNext: Next Quorums sent sent') : MsgInv sent' Quorums := by
-  unfold Next at hNext
-  rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
-  · exact msginv_is_inductive_phase1a sent sent' Quorums hInv hPhase1a
-  · exact msginv_is_inductive_phase2a sent sent' Quorums hInv hPhase2a
-  · exact msginv_is_inductive_phase1b sent sent' Quorums hInv hPhase1b
-  · exact msginv_is_inductive_phase2b sent sent' Quorums hInv hPhase2b
+/-- THEOREM Invariant in TLAPS. -/
+theorem Invariant {σ: ℕ → Set Message}
+    (hSpec : PaxosSpec Quorums σ) : ∀ n, MsgInv (σ n) Quorums := by
+  intro n
+  induction n with
+  | zero   =>
+    unfold PaxosSpec Init at hSpec;
+    simp [MsgInv, hSpec.1]
+  | succ k ih =>
+    let sent := σ k; let sent' := σ (k + 1)
+    unfold PaxosSpec at hSpec
+    have hStep := hSpec.2 k
+    cases hStep with
+    | inl hNext =>
+      have hInvHoldsPrev: MsgInv sent Quorums := ih
+      unfold Next at hNext
+      rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
+      · exact msginv_is_inductive_phase1a sent sent' Quorums hInvHoldsPrev hPhase1a
+      · exact msginv_is_inductive_phase2a sent sent' Quorums hInvHoldsPrev hPhase2a
+      · exact msginv_is_inductive_phase1b sent sent' Quorums hInvHoldsPrev hPhase1b
+      · exact msginv_is_inductive_phase2b sent sent' Quorums hInvHoldsPrev hPhase2b
+    | inr hStutter =>
+      rw [←hStutter]; exact ih
 
-/-- Effort: 60m
-    Used in theorem Agreement. Too long to fit in Agreement,
-     and it is also a main result on its own.
--/
+/-- Helper lemma used in theorem Agreement. -/
 lemma msginv_implies_agree
     (hInv : MsgInv sent Quorums) : Agree sent Quorums := by
   unfold Agree
@@ -810,7 +789,6 @@ lemma msginv_implies_agree
       (hChosenIn2: ChosenIn sent Quorums v2 b2)
       (h_b1_lt_b2: b1 < b2) : v1 = v2 := by
     have h_v2_safe_at_b2 : SafeAt sent Quorums v2 b2 := by
-      -- by VotedInv, QuorumAssumption DEF ChosenIn, Inv
       unfold ChosenIn at hChosenIn2
       rcases hChosenIn2 with ⟨Q2, hQ2, hVotedQ2⟩
       have ⟨aa, haa⟩ := pick_from_quorum_int Quorums hQ2 hQ2
@@ -819,17 +797,14 @@ lemma msginv_implies_agree
     unfold SafeAt at h_v2_safe_at_b2
     specialize h_v2_safe_at_b2 b1
     have h_v2_safe_at_b1 := h_v2_safe_at_b2 h_b1_lt_b2
-    rcases h_v2_safe_at_b1 with ⟨Q1, hQ1, hqsb1⟩
+    rcases h_v2_safe_at_b1 with ⟨Q1, hQ1, hQ_safe_at_b1⟩
     unfold ChosenIn at hChosenIn1
     rcases hChosenIn1 with ⟨Q2, hQ2, hvotedin1⟩
     have ⟨acc_voted_both, h_aa_in_quorum_int⟩ := pick_from_quorum_int Quorums hQ1 hQ2
     have haa_voted_v1_b1 : VotedForIn sent acc_voted_both v1 b1 :=
       hvotedin1 acc_voted_both h_aa_in_quorum_int.right
-    have haa_safe_b1 :
-        VotedForIn sent acc_voted_both v2 b1 ∨
-        WontVoteIn sent acc_voted_both b1 :=
-      hqsb1 acc_voted_both h_aa_in_quorum_int.left
-    cases haa_safe_b1 with
+    have haa_safe_at_b1 := hQ_safe_at_b1 acc_voted_both h_aa_in_quorum_int.left
+    cases haa_safe_at_b1 with
     | inl haa_voted_v2_b1 =>
       exact VotedOnce sent Quorums hInv haa_voted_v1_b1 haa_voted_v2_b1
     | inr haa_wont_vote_b1 =>
@@ -854,30 +829,7 @@ lemma msginv_implies_agree
       rcases h_total with (h_total_left | h_total_mid | h_total_r) <;> simp [*] at *
     exact id (agree_chosen_in_diff_bal b2 b1 v2 v1 hChosenIn2 hChosenIn1 h_nlt).symm
 
-/-- Effort: 20m
-    THEOREM Invariant in TLAPS
--/
-theorem Invariant {σ: ℕ → Set Message}
-    (hSpec : PaxosSpec Quorums σ) : ∀ n, MsgInv (σ n) Quorums := by
-  intro n
-  induction n with
-  | zero   =>
-    unfold PaxosSpec Init at hSpec;
-    simp [MsgInv, hSpec.1]
-  | succ k ih =>
-    let sent := σ k; let sent' := σ (k + 1)
-    unfold PaxosSpec at hSpec
-    have hStep := hSpec.2 k
-    cases hStep with
-    | inl hNext =>
-      have hInvHoldsPrev: MsgInv sent Quorums := ih
-      exact msginv_is_inductive_under_next (σ k) (σ (k + 1)) Quorums ih hNext
-    | inr hStutter =>
-      rw [←hStutter]; exact ih
-
-/-- Effort: 5m
-    THEOREM Agreement in TLAPS
--/
+/-- THEOREM Agreement in TLAPS. -/
 theorem Agreement {σ : ℕ → Set Message}
     (hSpec : PaxosSpec Quorums σ) : ∀ n, Agree (σ n) Quorums := by
   have inv : ∀ n, MsgInv (σ n) Quorums := by
