@@ -64,10 +64,9 @@ def Phase1a (b : Ballot) : Prop :=
 def max_prop (a : Acceptor): Set Message :=
   let twobs := {m ∈ sent | ∃ (b: Ballot) (v: Value), m = Message.twob b v a}
   if twobs ≠ ∅ then
-      {m₁ ∈ twobs | ∀ m₂ ∈ twobs, ∃ (b₁ b₂: Ballot) (v₁ v₂: Value),
-                        m₁ = Message.twob b₁ v₁ a
-                      ∧ m₂ = Message.twob b₂ v₂ a
-                      ∧ b₁ ≥ b₂}
+      {m₁ ∈ twobs | ∀ m₂ ∈ twobs, match m₁, m₂ with
+                                  | Message.twob b₁ _ _, Message.twob b₂ _ _ => b₁ ≥ b₂
+                                  | _, _ => True}
   else {Message.twob none none a}  -- return `none` for both `maxVBal` and `maxVal`.
 
 /-- Phase1b. Same as in TLA except using pattern matching. -/
