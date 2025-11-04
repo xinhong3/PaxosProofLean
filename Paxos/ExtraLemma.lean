@@ -10,23 +10,18 @@ namespace Paxos.ExtraLemma
 open Paxos.Spec Paxos.Prop
 open Set Classical
 
--- Re-introduce variables --
 variable (Quorums: Set (Set Acceptor))
 variable (sent sent': Set Message)
 
-/-- Effort: 5m
-    Used in proving that Phase2a is inductive
--/
+/-- Used in proving that Phase2a is inductive -/
 @[simp]
 lemma ballot_none_plus_one_leq_ballot
     {b : Ballot} : (none : Option Ballot) + (1 : Nat) ≤ some b := by
   dsimp [HAdd.hAdd]
   exact Nat.zero_le b
 
-/-- Effort: 10m (nonempty_iff_ne_empty took some time to find)
-    Used to pick a witness from the quorum intersection.
-    The immediate consequence of `QuorumAssumption`.
--/
+/-- The immediate consequence of `QuorumAssumption`. Used to pick an witness from the
+intersection of two quorums. -/
 @[simp]
 lemma pick_from_quorum_int {Q₁ Q₂ : Set Acceptor}
     (h1: Q₁ ∈ Quorums)
@@ -35,9 +30,7 @@ lemma pick_from_quorum_int {Q₁ Q₂ : Set Acceptor}
   rcases ((Iff.mpr nonempty_iff_ne_empty) hne) with ⟨aa, haa⟩
   exact Exists.intro aa haa
 
-/-- Effort: 20m
-    Lemma for `Ballot` ordering, used in `ind_phase2a`.
--/
+/-- Transitive property of `Option Ballot`. Used in `ind_phase2a`. -/
 @[simp]
 lemma option.some_succ_le_some_of_some_le_and_lt {n m k : Ballot}
     (h₁ : some n ≤ some m)
@@ -45,9 +38,7 @@ lemma option.some_succ_le_some_of_some_le_and_lt {n m k : Ballot}
   apply Option.some_le_some.mp at h₁
   apply le_trans (Nat.succ_le_succ h₁) (Nat.succ_le_iff.mpr h₂)
 
-/-- Effort: 5m
-    The messages in max_prop are of type `twob`.
--/
+/-- The messages in `max_prop` are of type `twob`. -/
 @[simp]
 theorem mem_max_prop_is_twob {m : Message} {a : Acceptor} :
     m ∈ max_prop sent a →
@@ -62,9 +53,7 @@ theorem mem_max_prop_is_twob {m : Message} {a : Acceptor} :
     rcases h_mem with ⟨_h_sent, ⟨b, v, rfl⟩, _⟩
     exact ⟨b, v, rfl⟩
 
-/-- Effort: 10m
-    If max_prop is not empty, then the acceptor must has voted for the value.
--/
+/-- If `max_prop` is not empty, then the acceptor must has voted for the value. -/
 @[simp]
 theorem max_prop_not_empty_implies_voted_for {a : Acceptor} {b : Ballot} {v : Value} :
     Message.twob b (some v) a ∈ max_prop sent a →
@@ -79,14 +68,10 @@ theorem max_prop_not_empty_implies_voted_for {a : Acceptor} {b : Ballot} {v : Va
   · exfalso
     simp at h_mem
 
-/-- Effort: 20m
-    This lemma states that either one of ballot or value is empty, then the other one
-    must also be empty.
-    This is used in later proof when we need to do pattern matching on both ballot and
-    value for `Message.twob`, and since they are both `Option`, we need to cover the
-    following cases: `match rbal, rval with | some rbal, none | none, some rval => ...`
-    This lemma allows us to eliminate these two cases.
--/
+/-- If either ballot or value is empty, then the other one must also be empty.
+This is used in later proof when we need to do pattern matching on both ballot and value
+for `Message.twob`, and since they are both `Option`, we need to cover the following
+cases: `match rbal, rval with | some rbal, none | none, some rval => ...` -/
 @[simp]
 lemma max_prop_empty_ballot_iff_empty_value {a : Acceptor} {m : Message}
     (hm : m ∈ max_prop sent a) :
@@ -97,9 +82,7 @@ lemma max_prop_empty_ballot_iff_empty_value {a : Acceptor} {m : Message}
   · simp at hm; simp [hm];
   · simp [*] at hm; have h_m_twob := hm.left.right; rcases h_m_twob with ⟨b, v, rfl⟩; simp
 
-/-- Effort: 20m
-    The acceptor could not have voted for a ballot greater than the one in `max_prop`
--/
+/-- The acceptor could not have voted for a ballot greater than the one in `max_prop` -/
 @[simp]
 theorem max_prop_implies_not_voted_for_greater_ballots
     {a : Acceptor} {b : Ballot} {v: Value} :
@@ -122,11 +105,9 @@ theorem max_prop_implies_not_voted_for_greater_ballots
   · exfalso
     simp at *
 
-/-- Effort: 20m
-    If the message from `max_prop` has empty ballot and value, then the acceptor has not
-    voted in any previous ballots. Used in proving the case when both `rbal` and `rval`
-    are empty in the proof of `Phase1b`.
--/
+/-- If the message from `max_prop` has empty ballot and value, then the acceptor has not
+voted in any previous ballots. Used in proving the case when both `rbal` and `rval` are
+empty in the proof of `Phase1b`. -/
 @[simp]
 theorem max_prop_empty_implies_not_voted_in_prev_ballots {a: Acceptor}
     (hm: Message.twob none none a ∈ max_prop sent a) :
@@ -147,28 +128,22 @@ theorem max_prop_empty_implies_not_voted_in_prev_ballots {a: Acceptor}
     exact h_nonempty hm_sent
 
 
--- The following 5 lemmas are used to show that `sent` grows monotonically with `Next`. --
+-- The following 5 lemmas are used to show that `sent` grows monotonically with `Next`.
 
-/-- Effort: 5m
-    This is the immediate consequence of the definition of `Send`.
-    We use this lemma to show that `Next` grows the history variable `sent` monotonically.
--/
+/--The immediate consequence of the definition of `Send`. We use this lemma to show that
+`Next` grows the history variable `sent` monotonically. -/
 @[simp]
 lemma send_monotonic {sent sent': Set Message} {x: Message}
     (h: sent' = Send x sent) : sent ⊆ sent' := by
   unfold Send at h; intro X hX; rw [h]; exact mem_union_left {x} hX
 
-/-- Effort: none (direct from definition)
-    `Phase1a` grows `sent` monotonically.
--/
+/-- `Phase1a` grows `sent` monotonically. -/
 @[simp]
 lemma phase1a_imp_mono_sent {b: Ballot}
     (hPhase1a: Phase1a sent sent' b) : sent ⊆ sent' := by
   unfold Phase1a at hPhase1a; exact send_monotonic hPhase1a
 
-/-- Effort: 5m
-    `Phase1b` grows `sent` monotonically.
--/
+/-- `Phase1b` grows `sent` monotonically. -/
 @[simp]
 lemma phase1b_imp_mono_sent {a: Acceptor}
     (hPhase1b: Phase1b sent sent' a) : sent ⊆ sent' := by
@@ -176,9 +151,7 @@ lemma phase1b_imp_mono_sent {a: Acceptor}
   rcases hPhase1b with ⟨m, hm, r, hr, hmatch⟩
   cases m <;> cases r <;> simp at hmatch; simp [hmatch]
 
-/-- Effort: 5m
-    `Phase2a` grows `sent` monotonically.
--/
+/-- `Phase2a` grows `sent` monotonically. -/
 @[simp]
 lemma phase2a_imp_mono_sent {b: Ballot}
     (hPhase2a: Phase2a Quorums sent sent' b) : sent ⊆ sent' := by
@@ -186,9 +159,7 @@ lemma phase2a_imp_mono_sent {b: Ballot}
   rcases hPhase2a with ⟨h_no_2a, ⟨_, _, _, h_rest⟩⟩
   simp [h_rest]
 
-/-- Effort: 5m
-    `Phase2b` grows `sent` monotonically.
--/
+/-- `Phase2b` grows `sent` monotonically. -/
 @[simp]
 lemma phase2b_imp_mono_sent {a: Acceptor}
     (hPhase2b: Phase2b sent sent' a) : sent ⊆ sent' := by
@@ -196,9 +167,7 @@ lemma phase2b_imp_mono_sent {a: Acceptor}
   rcases hPhase2b with ⟨m2b, hm2b, hmatch⟩
   cases m2b <;> simp at hmatch; simp [hmatch]
 
-/--  Effort: 3m
-    `sent` grows monotonically with `Next`.
-    This is used in the proof of `SafeAtStable`. -/
+/-- `sent` grows monotonically with `Next`. Used in the proof of `SafeAtStable`. -/
 @[simp]
 lemma next_imp_mono_sent
     (hNext: Next Quorums sent sent') : sent ⊆ sent' := by
@@ -209,11 +178,8 @@ lemma next_imp_mono_sent
   · exact phase1b_imp_mono_sent sent sent' hPhase1b
   · exact phase2b_imp_mono_sent sent sent' hPhase2b
 
-/-- Effort: 5m
-    If `sent` is a subset of `sent'`,
-    then `VotedForIn sent a v b` implies `VotedForIn sent' a v b`.
-    This is used in the proof of `SafeAtStable`.
--/
+/-- If `sent` is a subset of `sent'`, then voted in the former implies voted in the latter.
+Used in the proof of `SafeAtStable`.-/
 @[simp]
 lemma votedForIn_monotonic
     (h1: sent ⊆ sent') : VotedForIn sent a v b → VotedForIn sent' a v b := by
@@ -223,10 +189,7 @@ lemma votedForIn_monotonic
   refine (and_iff_right ?_).mpr hmatch
   apply h1; exact hm
 
-/-- Effort: 15m
-    If no 2b message is added to `sent`,
-    then the value predicate `¬VotedForIn` is preserved.
--/
+/-- If no 2b message is added to `sent`, then `¬VotedForIn` stays the same. -/
 @[simp]
 lemma send_add_non_twob_preserves_no_vote {a: Acceptor} {b: Ballot} {m: Message}
     (hnv : ∀ v, ¬ VotedForIn sent a v b)
@@ -249,11 +212,7 @@ lemma send_add_non_twob_preserves_no_vote {a: Acceptor} {b: Ballot} {m: Message}
                         simp [hsend] at hVoted
                         cases hVoted <;> cases m <;> simp [*] at *
 
-/-- Effort: 20m
-    Corresponds to the monotonicity of existantial quantifier describe in the TLAPS proof.
-    We combine this lemma with previous monotonic results to show some property `P` of
-    the history variable holds inductively.
--/
+/-- The monotonicity of existantial quantifier describe in the TLAPS proof. -/
 theorem exists_mem_of_subset {s t : Set Message} {P : Message → Prop}
     (hsub : s ⊆ t) (hex : ∃ x ∈ s, P x) : ∃ x ∈ t, P x := by
   rcases hex with ⟨x, hx_s, hx_P⟩
