@@ -9,11 +9,12 @@ open Set
 open Classical
 
 /- Types for acceptors, values. and ballots.
-   In CL, the first two are defined as constants for sets.
+   In CL, the first two are defined as constants for sets. We alias them to String for
+   simplicity.
    For Ballot, initial dummy value uses -1 in CL; we use "none" as in Option type in Lean.
 -/
-abbrev Acceptor := Type
-abbrev Value := Type
+abbrev Acceptor := String
+abbrev Value := String
 abbrev Ballot := Nat
 
 /-- Define `+` between `Option Ballot` and `Nat`.
