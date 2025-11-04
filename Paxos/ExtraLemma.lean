@@ -1,5 +1,6 @@
-/- Extra lemmas used to simplify the safety proof.
-   These are not present in the TLAPS proof in https://arxiv.org/pdf/1802.09687.
+/-
+  Extra lemmas used to simplify the safety proof.
+  These are not present in the TLAPS proof in https://arxiv.org/pdf/1802.09687.
 -/
 import Paxos.Spec
 import Paxos.Prop

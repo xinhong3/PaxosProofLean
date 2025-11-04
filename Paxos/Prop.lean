@@ -1,6 +1,6 @@
-/- Agreement property and invariants for Basic Paxos
-   in https://arxiv.org/pdf/1802.09687, Appendix A, by Chand and Liu, referred to as CL.
-   ! indicates the differences of this spec from the spec in CL
+/-
+  Agreement property and invariants for Basic Paxos
+  in https://arxiv.org/pdf/1802.09687, Appendix A, by Chand and Liu, referred to as CL.
 -/
 import Paxos.Spec
 
@@ -29,16 +29,16 @@ def WontVoteIn (a : Acceptor) (b : Ballot) : Prop :=
 def SafeAt (v : Value) (b : Ballot) : Prop :=
   ∀ b2 < b, ∃ Q ∈ Quorums, ∀ a ∈ Q, VotedForIn sent a v b2 ∨ WontVoteIn sent a b2
 
-/-- Message invariants for 1b, 2a, and 2b messages. -/
---! The added case below is because we define `maxVBal` and `maxVal` to be `Option` type.
---! We need to say if they are not both `some ... `, then they must be `none`.
+/-- Message invariants for 1b, 2a, and 2b messages. We added an extra invariant for 1b
+because `maxVBal` and `maxVal` are `Option` types. We need to say if they are not both
+`some ... `, then they must both be `none`. -/
 def MsgInv : Prop :=
   ∀ m ∈ sent,
     match m with
     | Message.oneb b maxVBal maxVal a =>
         (match maxVBal, maxVal with
           | some rbal, some rval         => VotedForIn sent a rval rbal
-          | option_rbal, option_rval     => option_rbal = none ∧ option_rval = none) --!added.
+          | option_rbal, option_rval     => option_rbal = none ∧ option_rval = none) -- added
       ∧ (∀ (b' : Ballot), (b' ≥ (maxVBal + (1: Nat)) ∧ (b' < b))
           → ¬(∃ v : Value, VotedForIn sent a v b'))
     | Message.twoa b v                 =>   (SafeAt sent Quorums v b)
