@@ -37,8 +37,8 @@ def MsgInv : Prop :=
     match m with
     | Message.oneb b maxVBal maxVal a =>
         (match maxVBal, maxVal with
-          | some rbal, some rval         => VotedForIn sent a rval rbal
-          | option_rbal, option_rval     => option_rbal = none ∧ option_rval = none) -- added
+         | some rbal, some rval         => VotedForIn sent a rval rbal
+         | option_rbal, option_rval     => option_rbal = none ∧ option_rval = none) -- added
       ∧ (∀ (b' : Ballot), (b' ≥ (maxVBal + (1: Nat)) ∧ (b' < b))
           → ¬(∃ v : Value, VotedForIn sent a v b'))
     | Message.twoa b v                 =>   (SafeAt sent Quorums v b)

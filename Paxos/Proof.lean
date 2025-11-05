@@ -15,7 +15,7 @@ variable (Quorums : Set (Set Acceptor))
 -- Setting a higher heartbeat limit for simp.
 set_option maxHeartbeats 1000000
 
-/-- lemma VotedInv in TLAPS. -/
+/-- lemma VotedInv in CL. -/
 lemma VotedInv (h1: MsgInv sent Quorums) :
     ∀ a v b, VotedForIn sent a v b → SafeAt sent Quorums v b := by
   unfold MsgInv VotedForIn at *
@@ -24,7 +24,7 @@ lemma VotedInv (h1: MsgInv sent Quorums) :
   apply h1 at h; simp at h
   exact h.left
 
-/-- lemma VotedOnce in TLAPS. -/
+/-- lemma VotedOnce in CL. -/
 lemma VotedOnce
     (hInv: MsgInv sent Quorums)
     (h_voted_1: VotedForIn sent a1 v1 b)
@@ -38,169 +38,140 @@ lemma VotedOnce
   apply h_exists_2a_with_v1.right at h_exists_2a_with_v2; simp at h_exists_2a_with_v2
   exact h_exists_2a_with_v2.symm
 
+
+/-- A template for proving `SafeAtStable`. For each phase, we only need to show that
+`WontVoteIn` is preserved from `sent` to `sent'`. In other words, each phase only needs to
+provide a proof for `h_wontVoteIn_preserves`. -/
+lemma safeAt_inductive_template
+    (v: Value) (b: Ballot)
+    (h_sent_monotonic : sent ⊆ sent')
+    (h_wontVoteIn_preserves : ∀ {a b2}, WontVoteIn sent a b2 → WontVoteIn sent' a b2)
+    : SafeAt sent Quorums v b → SafeAt sent' Quorums v b := by
+  intro hSafe
+  unfold SafeAt at *
+  intro b2 hxb
+  rcases hSafe b2 hxb with ⟨Q, hQ, hAll⟩
+  have hV : ∀ {a}, a ∈ Q → VotedForIn sent a v b2 → VotedForIn sent' a v b2 := by
+    exact fun {a} a_1 a_2 => votedForIn_monotonic sent sent' h_sent_monotonic a_2
+  refine ⟨Q, hQ, ?_⟩
+  intro A hA
+  cases hAll A hA with
+  | inl hVoted  => exact Or.inl (hV hA hVoted)
+  | inr hWont   => exact Or.inr (h_wontVoteIn_preserves hWont)
+
 -- The following four lemmas show that `SafeAt` is inductive over all four phases.
 
-lemma safe_at_is_inductive_phase1a
-    (h1a: Phase1a sent sent' b')
-    (hSafe: SafeAt sent Quorums v b): SafeAt sent' Quorums v b := by
-  unfold SafeAt at *
-  intro b2 hxb
-  specialize hSafe b2 hxb
-  rcases hSafe with ⟨Q, h_Q_in_Quorums, h_Q_safe⟩
-  -- Prove that both `VotedForIn` and `WontVoteIn` are preserved from `sent` to `sent'`
-  have hV : ∀ a ∈ Q, VotedForIn sent a v b2 → VotedForIn sent' a v b2 :=
-    fun a a_1 a_2 ↦ votedForIn_monotonic sent sent' (send_monotonic h1a) a_2
-  have hW : ∀ a ∈ Q, WontVoteIn sent a b2 → WontVoteIn sent' a b2 := by
-    intro A hA hWont
-    unfold WontVoteIn at *
+lemma safeAt_is_inductive_phase1a
+    (h1a : Phase1a sent sent' b')
+    (hSafe : SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
+  have h_mono : sent ⊆ sent' := send_monotonic h1a
+  have h_wontVoteIn_preserves :
+      ∀ {A b2}, WontVoteIn sent A b2 → WontVoteIn sent' A b2 := by
+    intro A b2 hW; unfold WontVoteIn at *
     constructor
-    · unfold Phase1a at h1a
-      refine send_add_non_twob_preserves_no_vote sent sent' hWont.left h1a ?_
+    · refine send_add_non_twob_preserves_no_vote sent sent' hW.left h1a ?_
       exact Or.inl (exists_apply_eq_apply' Message.onea b')
-    · exact exists_mem_of_subset (send_monotonic h1a) hWont.right
-  use Q; constructor
-  · exact h_Q_in_Quorums
-  · intro A ha
-    cases h_Q_safe A ha with
-    | inl hVoted => left; exact hV A ha hVoted
-    | inr hWont => right; exact hW A ha hWont
+    · exact exists_mem_of_subset h_mono hW.right
+  exact safeAt_inductive_template
+          sent sent' Quorums v b h_mono h_wontVoteIn_preserves hSafe
 
-lemma safe_at_is_inductive_phase1b
+lemma safeAt_is_inductive_phase1b
     (h1b: Phase1b sent sent' a)
     (hSafe: SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
-  unfold SafeAt at *
-  have h_sent_monotonic : sent ⊆ sent' := by exact phase1b_imp_mono_sent sent sent' h1b
-  intro b2 hxb                                    -- intro `b2` and hxb : `b2 < b`
-  specialize hSafe b2 hxb                         -- apply `b2` to `hSafe`
-  rcases hSafe with ⟨Q, h_Q_in_Quorums, hAllVotedOrWontVote⟩
-  have hV : ∀ a ∈ Q, VotedForIn sent a v b2 → VotedForIn sent' a v b2 := by
-    exact fun a a_1 a_2 ↦ votedForIn_monotonic sent sent' h_sent_monotonic a_2
-  have hW : ∀ a ∈ Q, WontVoteIn sent a b2 → WontVoteIn sent' a b2 := by
-    intro A hA hWont
-    unfold WontVoteIn at *
+  have h_mono : sent ⊆ sent' := by exact phase1b_imp_mono_sent sent sent' h1b
+  have h_wontVoteIn_preserves :
+      ∀ {A b2}, WontVoteIn sent A b2 → WontVoteIn sent' A b2 := by
+    intro A b2 hW; unfold WontVoteIn at *
     constructor
     · unfold Phase1b at h1b
-      rcases h1b with ⟨m, hmsent, r, hr, hmatch⟩
+      rcases h1b with ⟨m, hm, r, hr, hmatch⟩
       cases m with
-      | onea b1 =>
+      | onea _ =>
         cases r with
-        | twob rbal rval a1 =>
+        | twob _ _ _ =>
           simp [-Send] at hmatch
-          refine send_add_non_twob_preserves_no_vote sent sent' hWont.left hmatch.right ?_
+          refine send_add_non_twob_preserves_no_vote sent sent' hW.left hmatch.right ?_
           exact Or.inr (Or.inl (by simp))
-        | _ => simp at *;
-      | _ => simp at *;
-    · exact exists_mem_of_subset h_sent_monotonic hWont.right
-  use Q; constructor
-  · exact h_Q_in_Quorums
-  · intro A ha
-    specialize hAllVotedOrWontVote A ha
-    specialize hV A ha
-    cases hAllVotedOrWontVote with
-    | inl hVotedInPrev => exact Or.inl (hV hVotedInPrev)
-    | inr hWontVoteInPrev => exact Or.inr (hW A ha hWontVoteInPrev)
+        | _ => simp at *
+      | _ => simp at *
+    · exact exists_mem_of_subset h_mono hW.right
+  exact safeAt_inductive_template
+          sent sent' Quorums v b h_mono h_wontVoteIn_preserves hSafe
 
-lemma safe_at_is_inductive_phase2a
-    (h2a: Phase2a Quorums sent sent' b')
-    (hSafe: SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
-  have h_sent_monotonic : sent ⊆ sent' := by exact phase2a_imp_mono_sent Quorums sent sent' h2a
-  unfold SafeAt at *
-  intro b2 hxb
-  specialize hSafe b2 hxb
-  rcases hSafe with ⟨Q, h_Q_in_Quorums, h_Q_safe⟩
-  -- Prove that both `VotedForIn` and `WontVoteIn` are preserved from `sent` to `sent'`
-  have hV : ∀ a ∈ Q, VotedForIn sent a v b2 → VotedForIn sent' a v b2 := by
-    exact fun a a_1 a_2 ↦ votedForIn_monotonic sent sent' h_sent_monotonic a_2
-  have hW : ∀ a ∈ Q, WontVoteIn sent a b2 → WontVoteIn sent' a b2 := by
-    intro A hA hWont
-    unfold WontVoteIn at *
+lemma safeAt_is_inductive_phase2a
+    (h2a : Phase2a Quorums sent sent' b')
+    (hSafe : SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
+  have h_mono : sent ⊆ sent' := phase2a_imp_mono_sent Quorums sent sent' h2a
+  have h_wontVoteIn_preserves :
+      ∀ {A b2}, WontVoteIn sent A b2 → WontVoteIn sent' A b2 := by
+    intro A b2 hW; unfold WontVoteIn at *
     constructor
-    · unfold Phase2a at h2a
-      rcases h2a with ⟨h_no_2a, ⟨v_, Q_, S_, _, _, _, _, h_sent'⟩⟩
-      refine send_add_non_twob_preserves_no_vote sent sent' hWont.left h_sent' ?_
+    · rcases h2a with ⟨_, ⟨_,_,_,_,_,_,_, h_send⟩⟩
+      refine send_add_non_twob_preserves_no_vote sent sent' hW.left h_send ?_
       exact Or.inr (Or.inr (by simp))
-    · exact exists_mem_of_subset h_sent_monotonic hWont.right
-  use Q; constructor
-  · exact h_Q_in_Quorums
-  · intro A ha
-    specialize h_Q_safe A ha         -- get rid of ∀ in h_Q_safe
-    specialize hV A ha
-    cases h_Q_safe with
-    | inl hVotedInPrev => exact Or.inl (hV hVotedInPrev);
-    | inr hWontVoteInPrev => exact Or.inr (hW A ha hWontVoteInPrev)
+    · exact exists_mem_of_subset h_mono hW.right
+  exact safeAt_inductive_template
+          sent sent' Quorums v b h_mono h_wontVoteIn_preserves hSafe
 
-lemma safe_at_is_inductive_phase2b
-    (h2b: Phase2b sent sent' a)
-    (hSafe: SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
-  have h_sent_monotonic : sent ⊆ sent' := by exact phase2b_imp_mono_sent sent sent' h2b
-  unfold SafeAt at *
-  intro b2 hxb
-  specialize hSafe b2 hxb
-  rcases hSafe with ⟨Q, h_Q_in_Quorums, h_Q_safe⟩
-  -- Prove that both `VotedForIn` and `WontVoteIn` are preserved from `sent` to `sent'`
-  have hV : ∀ a ∈ Q, VotedForIn sent a v b2 → VotedForIn sent' a v b2 := by
-    exact fun a a_1 a_2 ↦ votedForIn_monotonic sent sent' h_sent_monotonic a_2
-  have hW : ∀ a ∈ Q, WontVoteIn sent a b2 → WontVoteIn sent' a b2 := by
-    intro A hA hWont
-    unfold WontVoteIn at *
+lemma safeAt_is_inductive_phase2b
+    (h2b : Phase2b sent sent' a)
+    (hSafe : SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
+  have h_mono : sent ⊆ sent' := phase2b_imp_mono_sent sent sent' h2b
+  have h_wontVoteIn_preserves :
+      ∀ {A b2}, WontVoteIn sent A b2 → WontVoteIn sent' A b2 := by
+    intro A b2 hW; unfold WontVoteIn at *
     constructor
     · unfold Phase2b at h2b
-      rcases h2b with ⟨m2a, hmsent, hmatch⟩
+      rcases h2b with ⟨m2a, h_twoa_in_sent, hmatch⟩
       cases m2a with
       | twoa b1 v1 =>
         simp [-Send] at hmatch
+        rcases hmatch with ⟨hpo, h_send⟩
         by_cases ha : a = A
         · have h_not_eq_bal : b2 ≠ b1 := by
-            rcases hWont with ⟨_, ⟨m_1b_2b, hm_sent, hm_match⟩⟩
+            rcases hW with ⟨_, ⟨m_1b_2b, hm_sent, hm_match⟩⟩
             let m_1b_2b_c := m_1b_2b
             cases m_1b_2b with
             | oneb bb _ _ a1 | twob bb _ a1 =>
-              -- consolidate the two cases since they overlap a lot
-              all_goals
+              all_goals         -- consolidate the two cases
               simp at hm_match
-              have hle := hmatch.left m_1b_2b_c hm_sent
+              have hle := hpo m_1b_2b_c hm_sent
               simp [hm_match.left, ha, m_1b_2b_c] at hle
-              -- oneb case
+              -- specific to oneb
               try exact ne_of_lt (lt_of_lt_of_le hm_match.right hle)
-              -- twob case, we need an extra step to break down bb which is an `Option`
+              -- specific to twob
               try cases bb with
-                | none    => simp_all
+                | none    => simp at *
                 | some bb => exact ne_of_lt (lt_of_lt_of_le hm_match.right hle)
-            | _ => simp [*] at *
+            | _ => simp at *
           intro V hVoted
-          let hNotVotedPrev := hWont.left
+          let hNotVotedPrev := hW.left
           specialize hNotVotedPrev V
           unfold VotedForIn at hVoted hNotVotedPrev
           simp [*] at *; exact hNotVotedPrev hVoted
         · intro V hVoted
-          let hNotVotedPrev := hWont.left
+          let hNotVotedPrev := hW.left
           specialize hNotVotedPrev V
           unfold VotedForIn at hVoted hNotVotedPrev
-          simp [hmatch] at hVoted
+          simp [h_send] at hVoted
           cases hVoted with
-          | inl hVotedCurrent => simp [hVotedCurrent] at ha;
-          | inr hVotedInPrev => simp [*] at *;
-      | _ => simp at *
-    · exact exists_mem_of_subset h_sent_monotonic hWont.right
-  use Q; constructor
-  · exact h_Q_in_Quorums
-  · intro A ha
-    specialize h_Q_safe A ha
-    specialize hV A ha
-    cases h_Q_safe with
-    | inl hVotedInPrev => exact Or.inl (hV hVotedInPrev);
-    | inr hWontVoteInPrev => exact Or.inr (hW A ha hWontVoteInPrev)
+          | inl hVotedCurrent => simp [hVotedCurrent] at ha
+          | inr hVotedInPrev => simp [*] at *
+      | _ => simp at hmatch
+    · exact exists_mem_of_subset h_mono hW.right
+  exact safeAt_inductive_template
+          sent sent' Quorums v b h_mono h_wontVoteIn_preserves hSafe
 
-/-- lemma SafeAtStable in TLAPS. -/
+/-- lemma SafeAtStable in CL. -/
 lemma SafeAtStable {v: Value} {b: Ballot}
     (hNext : Next Quorums sent sent')
     (hSafe : SafeAt sent Quorums v b) : SafeAt sent' Quorums v b := by
   unfold Next at hNext
   rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
-  · exact safe_at_is_inductive_phase1a sent sent' Quorums hPhase1a hSafe
-  · exact safe_at_is_inductive_phase2a sent sent' Quorums hPhase2a hSafe
-  · exact safe_at_is_inductive_phase1b sent sent' Quorums hPhase1b hSafe
-  · exact safe_at_is_inductive_phase2b sent sent' Quorums hPhase2b hSafe
+  · exact safeAt_is_inductive_phase1a sent sent' Quorums hPhase1a hSafe
+  · exact safeAt_is_inductive_phase2a sent sent' Quorums hPhase2a hSafe
+  · exact safeAt_is_inductive_phase1b sent sent' Quorums hPhase1b hSafe
+  · exact safeAt_is_inductive_phase2b sent sent' Quorums hPhase2b hSafe
 
 -- The following four lemmas show that `MsgInv` is inductive over all four phases.
 
@@ -248,7 +219,7 @@ lemma msginv_is_inductive_phase1a
       simp at hInv; simp [-Send]
       rw [←h1a]
       apply And.intro
-      · exact safe_at_is_inductive_phase1a sent sent' Quorums h1a_copy hInv.left
+      · exact safeAt_is_inductive_phase1a sent sent' Quorums h1a_copy hInv.left
       · have h_inv_right := hInv.right
         intro m2 h_m2_in_sent'
         specialize h_inv_right m2
@@ -352,7 +323,7 @@ lemma msginv_is_inductive_phase1b
           simp at hInv; simp [-Send]
           specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
           apply And.intro
-          · exact safe_at_is_inductive_phase1b sent sent' Quorums h1b_copy hInv.left
+          · exact safeAt_is_inductive_phase1b sent sent' Quorums h1b_copy hInv.left
           · have h_inv_right := hInv.right
             intro m2 h_m2_in_sent'
             specialize h_inv_right m2
@@ -588,7 +559,7 @@ lemma msginv_is_inductive_phase2a
                   simp only [h_m2_in_sent]
                   simp [h_m2_is_oneb.2, hm2_match, h_b2_less_than_b]
                 | _ => exfalso; simp at hm2_match;
-      exact safe_at_is_inductive_phase2a sent sent' Quorums h2a_copy h_safe_at_prev
+      exact safeAt_is_inductive_phase2a sent sent' Quorums h2a_copy h_safe_at_prev
     -- unique proposal
     · intro m2 h_m2_in_sent'
       by_cases h_m2_in_sent : m2 ∈ sent
@@ -636,7 +607,7 @@ lemma msginv_is_inductive_phase2a
       simp at hInv; simp [-Send]
       specialize hInv m' hm_sent'; simp [hm'] at hInv
       apply And.intro
-      · exact safe_at_is_inductive_phase2a sent sent' Quorums h2a_copy hInv.left
+      · exact safeAt_is_inductive_phase2a sent sent' Quorums h2a_copy hInv.left
       · have h_inv_right := hInv.right
         intro m2 h_m2_in_sent'
         specialize h_inv_right m2
@@ -735,7 +706,7 @@ lemma msginv_is_inductive_phase2b
           simp at hInv; simp [-Send]
           specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
           apply And.intro
-          · exact safe_at_is_inductive_phase2b sent sent' Quorums h2b_copy hInv.left
+          · exact safeAt_is_inductive_phase2b sent sent' Quorums h2b_copy hInv.left
           · have h_inv_right := hInv.right
             intro m2 h_m2_in_sent'
             specialize h_inv_right m2
@@ -755,7 +726,7 @@ lemma msginv_is_inductive_phase2b
       exact h_sent_monotonic h_2a_sent
   | _ => simp [*] at *
 
-/-- THEOREM Invariant in TLAPS. -/
+/-- THEOREM Invariant in CL. -/
 theorem Invariant {σ: ℕ → Set Message}
     (hSpec : PaxosSpec Quorums σ) : ∀ n, MsgInv (σ n) Quorums := by
   intro n
@@ -779,7 +750,7 @@ theorem Invariant {σ: ℕ → Set Message}
     | inr hStutter =>
       rw [←hStutter]; exact ih
 
-/-- Helper lemma used in theorem Agreement. -/
+/-- MsgInv => Agree in CL. We write it as a seperate lemma. -/
 lemma msginv_implies_agree
     (hInv : MsgInv sent Quorums) : Agree sent Quorums := by
   unfold Agree
