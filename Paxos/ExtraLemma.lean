@@ -14,7 +14,14 @@ open Set Classical
 variable (Quorums: Set (Set Acceptor))
 variable (sent sent': Set Message)
 
-/-- Used in proving that Phase2a is inductive -/
+-- The following four are helper definitions for checking message types.
+
+@[simp] def is1a : Message → Prop | Message.onea _ => True | _ => False
+@[simp] def is1b : Message → Prop | Message.oneb _ _ _ _ => True | _ => False
+@[simp] def is2a : Message → Prop | Message.twoa _ _ => True | _ => False
+@[simp] def is2b : Message → Prop | Message.twob _ _ _ => True | _ => False
+
+/-- Used in proving that Phase2a is inductive. -/
 @[simp]
 lemma ballot_none_plus_one_leq_ballot
     {b : Ballot} : (none : Option Ballot) + (1 : Nat) ≤ some b := by
@@ -136,19 +143,18 @@ theorem max_prop_empty_implies_not_voted_in_prev_ballots {a: Acceptor}
 @[simp]
 lemma send_monotonic {sent sent': Set Message} {x: Message}
     (h: sent' = Send x sent) : sent ⊆ sent' := by
-  unfold Send at h; intro X hX; rw [h]; exact mem_union_left {x} hX
+  simp [Send, h]
 
 /-- `Phase1a` grows `sent` monotonically. -/
 @[simp]
 lemma phase1a_imp_mono_sent {b: Ballot}
     (hPhase1a: Phase1a sent sent' b) : sent ⊆ sent' := by
-  unfold Phase1a at hPhase1a; exact send_monotonic hPhase1a
+  exact send_monotonic hPhase1a
 
 /-- `Phase1b` grows `sent` monotonically. -/
 @[simp]
 lemma phase1b_imp_mono_sent {a: Acceptor}
     (hPhase1b: Phase1b sent sent' a) : sent ⊆ sent' := by
-  unfold Phase1b at hPhase1b
   rcases hPhase1b with ⟨m, hm, r, hr, hmatch⟩
   cases m <;> cases r <;> simp at hmatch; simp [hmatch]
 
@@ -156,7 +162,6 @@ lemma phase1b_imp_mono_sent {a: Acceptor}
 @[simp]
 lemma phase2a_imp_mono_sent {b: Ballot}
     (hPhase2a: Phase2a Quorums sent sent' b) : sent ⊆ sent' := by
-  unfold Phase2a at hPhase2a
   rcases hPhase2a with ⟨h_no_2a, ⟨_, _, _, h_rest⟩⟩
   simp [h_rest]
 
@@ -164,7 +169,6 @@ lemma phase2a_imp_mono_sent {b: Ballot}
 @[simp]
 lemma phase2b_imp_mono_sent {a: Acceptor}
     (hPhase2b: Phase2b sent sent' a) : sent ⊆ sent' := by
-  unfold Phase2b at hPhase2b
   rcases hPhase2b with ⟨m2b, hm2b, hmatch⟩
   cases m2b <;> simp at hmatch; simp [hmatch]
 
@@ -172,51 +176,36 @@ lemma phase2b_imp_mono_sent {a: Acceptor}
 @[simp]
 lemma next_imp_mono_sent
     (hNext: Next Quorums sent sent') : sent ⊆ sent' := by
-  unfold Next at hNext
   rcases hNext with ⟨b, hPhase1a | hPhase2a⟩ | ⟨a, hPhase1b | hPhase2b⟩
   · exact phase1a_imp_mono_sent sent sent' hPhase1a
   · exact phase2a_imp_mono_sent Quorums sent sent' hPhase2a
   · exact phase1b_imp_mono_sent sent sent' hPhase1b
   · exact phase2b_imp_mono_sent sent sent' hPhase2b
 
+/-- The monotonicity of existantial quantifier describe in the TLAPS proof. -/
+theorem exists_mem_of_subset {s t : Set Message} {P : Message → Prop}
+    (hsub : s ⊆ t) (hex : ∃ x ∈ s, P x) : ∃ x ∈ t, P x := by
+  rcases hex with ⟨x, hx_s, hx_P⟩
+  exact ⟨x, hsub hx_s, hx_P⟩
+
 /-- If `sent` is a subset of `sent'`, then voted in the former implies voted in the latter.
 Used in the proof of `SafeAtStable`.-/
 @[simp]
 lemma votedForIn_monotonic
     (h1: sent ⊆ sent') : VotedForIn sent a v b → VotedForIn sent' a v b := by
-  intro h1
-  rcases h1 with ⟨m, hm, hmatch⟩
-  use m
-  refine (and_iff_right ?_).mpr hmatch
-  apply h1; exact hm
+  exact exists_mem_of_subset h1
 
 /-- If no 2b message is added to `sent`, then `¬VotedForIn` stays the same. -/
 @[simp]
 lemma send_add_non_twob_preserves_no_vote {a: Acceptor} {b: Ballot} {m: Message}
     (hnv : ∀ v, ¬ VotedForIn sent a v b)
     (hsend : sent' = Send m sent)
-    (hm :   (∃ bal, m = Message.onea bal)
-          ∨ (∃ bal maxV maxVal a', m = Message.oneb bal maxV maxVal a')
-          ∨ (∃ bal val, m = Message.twoa bal val)) : ∀ v, ¬ VotedForIn sent' a v b := by
-  intro v hVoted
-  cases hm with
-  | inl h_1a => specialize hnv v; unfold VotedForIn at *
-                simp [hsend] at hVoted
-                cases hVoted with
-                | inl h_m_eq_2b => cases m <;> simp [*] at *
-                | inr h_2b_in_sent => simp [h_2b_in_sent] at hnv;
-  | inr h_1b_2a =>  cases h_1b_2a with
-                    | inl h_1b | inr h_2a =>
-                        all_goals
-                        specialize hnv v
-                        unfold VotedForIn at *
-                        simp [hsend] at hVoted
-                        cases hVoted <;> cases m <;> simp [*] at *
-
-/-- The monotonicity of existantial quantifier describe in the TLAPS proof. -/
-theorem exists_mem_of_subset {s t : Set Message} {P : Message → Prop}
-    (hsub : s ⊆ t) (hex : ∃ x ∈ s, P x) : ∃ x ∈ t, P x := by
-  rcases hex with ⟨x, hx_s, hx_P⟩
-  exact ⟨x, hsub hx_s, hx_P⟩
+    (hm : ¬ is2b m) : ∀ v, ¬ VotedForIn sent' a v b := by
+  intro v hVotedInSent'
+  unfold VotedForIn at *
+  simp [*] at hVotedInSent'
+  cases hVotedInSent' with
+  | inl h1 => rw [←h1] at hm; simp at hm
+  | inr h2 => simp_all
 
 end Paxos.ExtraLemma

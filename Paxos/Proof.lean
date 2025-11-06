@@ -69,8 +69,7 @@ lemma safeAt_is_inductive_phase1a
       ∀ {A b2}, WontVoteIn sent A b2 → WontVoteIn sent' A b2 := by
     intro A b2 hW; unfold WontVoteIn at *
     constructor
-    · refine send_add_non_twob_preserves_no_vote sent sent' hW.left h1a ?_
-      exact Or.inl (exists_apply_eq_apply' Message.onea b')
+    · refine send_add_non_twob_preserves_no_vote sent sent' hW.left h1a (by simp)
     · exact exists_mem_of_subset h_mono hW.right
   exact safeAt_inductive_template
           sent sent' Quorums v b h_mono h_wontVoteIn_preserves hSafe
@@ -90,8 +89,7 @@ lemma safeAt_is_inductive_phase1b
         cases r with
         | twob _ _ _ =>
           simp [-Send] at hmatch
-          refine send_add_non_twob_preserves_no_vote sent sent' hW.left hmatch.right ?_
-          exact Or.inr (Or.inl (by simp))
+          refine send_add_non_twob_preserves_no_vote sent sent' hW.left hmatch.right (by simp)
         | _ => simp at *
       | _ => simp at *
     · exact exists_mem_of_subset h_mono hW.right
@@ -107,8 +105,7 @@ lemma safeAt_is_inductive_phase2a
     intro A b2 hW; unfold WontVoteIn at *
     constructor
     · rcases h2a with ⟨_, ⟨_,_,_,_,_,_,_, h_send⟩⟩
-      refine send_add_non_twob_preserves_no_vote sent sent' hW.left h_send ?_
-      exact Or.inr (Or.inr (by simp))
+      refine send_add_non_twob_preserves_no_vote sent sent' hW.left h_send (by simp)
     · exact exists_mem_of_subset h_mono hW.right
   exact safeAt_inductive_template
           sent sent' Quorums v b h_mono h_wontVoteIn_preserves hSafe
