@@ -48,7 +48,7 @@ lemma option.some_succ_le_some_of_some_le_and_lt {n m k : Ballot}
 
 /-- The messages in `max_prop` are of type `twob`. -/
 @[simp]
-theorem mem_max_prop_is_twob {m : Message} {a : Acceptor} :
+theorem mem_max_prop_is_2b {m : Message} {a : Acceptor} :
     m ∈ max_prop sent a →
       ∃ (b : Option Ballot) (v : Option Value), m = Message.twob b v a := by
   dsimp [max_prop] at *
@@ -195,17 +195,89 @@ lemma votedForIn_monotonic
     (h1: sent ⊆ sent') : VotedForIn sent a v b → VotedForIn sent' a v b := by
   exact exists_mem_of_subset h1
 
-/-- If no 2b message is added to `sent`, then `¬VotedForIn` stays the same. -/
+/-- If no 2b message is added, then the value of `VotedForIn` stays the same. -/
 @[simp]
-lemma send_add_non_twob_preserves_no_vote {a: Acceptor} {b: Ballot} {m: Message}
+lemma votedForIn_same_if_no_2b_added
+    (h_mono: sent ⊆ sent')
+    (hm: ∀ m ∈ sent' \ sent, ¬ is2b m) :
+    VotedForIn sent a v b ↔ VotedForIn sent' a v b := by
+  unfold VotedForIn at *
+  constructor
+  · exact exists_mem_of_subset h_mono
+  · intro h2
+    rcases h2 with ⟨m, hm_sent', hmatch⟩
+    by_cases h_m_in_sent : m ∈ sent
+    · exact ⟨m, h_m_in_sent, hmatch⟩
+    · simp [*] at *
+      exact False.elim (hm (Message.twob (some b) (some v) a) hm_sent' h_m_in_sent trivial)
+
+/-- If no 1b or 2b message is added, then the second invariant for 2b is stable. -/
+lemma oneb_inv_2_stable_if_no_twob_added {maxVBal: Option Ballot} {b: Ballot} {a: Acceptor}
+    (sent sent': Set Message)
+    (h_mono: sent ⊆ sent')
+    (h_no_2b_added: ∀ m ∈ sent' \ sent, ¬ is2b m) :
+    (∀ (b' : Ballot), (b' ≥ (maxVBal + (1: Nat)) ∧ (b' < b))
+          → ¬(∃ v : Value, VotedForIn sent a v b')) →
+    (∀ (b' : Ballot), (b' ≥ (maxVBal + (1: Nat)) ∧ (b' < b))
+          → ¬(∃ v : Value, VotedForIn sent' a v b')) := by
+  intro h_not_voted_in_sent b' hle ⟨v, h_voted_in_sent'⟩
+  have h_no_vote_in_sent_b' := h_not_voted_in_sent b' hle
+  simp at h_no_vote_in_sent_b'
+  exact h_no_vote_in_sent_b' v
+          ((votedForIn_same_if_no_2b_added sent sent' h_mono h_no_2b_added).mpr
+          h_voted_in_sent')
+
+/-- If no 2b message is added to `sent`, and the acceptor has not voted in a previous
+ballot. Then it still has not voted in that ballot in `sent'`. -/
+@[simp]
+lemma no_votes_stable_if_no_2b_added {a: Acceptor} {b: Ballot} {m: Message}
     (hnv : ∀ v, ¬ VotedForIn sent a v b)
     (hsend : sent' = Send m sent)
     (hm : ¬ is2b m) : ∀ v, ¬ VotedForIn sent' a v b := by
-  intro v hVotedInSent'
-  unfold VotedForIn at *
-  simp [*] at hVotedInSent'
-  cases hVotedInSent' with
-  | inl h1 => rw [←h1] at hm; simp at hm
-  | inr h2 => simp_all
+  have h_no_2b_added : ∀ m' ∈ sent' \ sent, ¬ is2b m' := by simp_all
+  have h_mono : sent ⊆ sent' := send_monotonic hsend
+  intro v h_voted_in_sent'; specialize hnv v
+  have h_votedForIn_same :=
+    @votedForIn_same_if_no_2b_added sent sent' a v b h_mono h_no_2b_added
+  simp [h_votedForIn_same, h_voted_in_sent'] at hnv
+
+/-- If no 1b or 2b message is added, then `WontVoteIn` is stable. -/
+@[simp]
+lemma wontVoteIn_stable_if_no_1b2b_added
+    (h_mono: sent ⊆ sent')
+    (hm: ∀ m ∈ sent' \ sent, ¬ (is1b m ∨ is2b m)) :
+    WontVoteIn sent a b → WontVoteIn sent' a b := by
+  unfold WontVoteIn
+  intro h_wontVoteIn_sent
+  rcases h_wontVoteIn_sent with ⟨h_no_vote, h_exists_greater_ballot⟩
+  constructor
+  · intro v h_voted_in_sent'; specialize h_no_vote v
+    have h_no_2b_added : ∀ m' ∈ sent' \ sent, ¬ is2b m' := by simp_all
+    simp [@votedForIn_same_if_no_2b_added sent sent' a v b h_mono h_no_2b_added,
+          h_voted_in_sent'] at h_no_vote
+  · exact exists_mem_of_subset h_mono h_exists_greater_ballot
+
+/-- If no 1b or 2b message is added, then `SafeAt` is stable. -/
+@[simp]
+lemma safeAt_stable_if_no_1b2b_added
+    (h_mono: sent ⊆ sent')
+    (hm: ∀ m ∈ sent' \ sent, ¬ (is1b m ∨ is2b m)) :
+    SafeAt sent Quorums v b → SafeAt sent' Quorums v b := by
+  unfold SafeAt
+  intro h_safeAt_sent
+  intro b2 h_b2_lt_b
+  rcases h_safeAt_sent b2 h_b2_lt_b with ⟨Q, hQ_in, h_voted_or_wontVote⟩
+  use Q
+  constructor
+  · exact hQ_in
+  · intro a ha_in_Q
+    specialize h_voted_or_wontVote a ha_in_Q
+    cases h_voted_or_wontVote with
+    | inl h_voted =>
+      apply Or.inl
+      exact (votedForIn_monotonic sent sent' h_mono h_voted)
+    | inr h_wontVote =>
+      apply Or.inr
+      exact wontVoteIn_stable_if_no_1b2b_added sent sent' h_mono hm h_wontVote
 
 end Paxos.ExtraLemma

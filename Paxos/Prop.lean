@@ -10,6 +10,7 @@ open Paxos.Spec
 variable (sent sent' : Set Message)
 variable (Quorums : Set (Set Acceptor))
 
+/-- Depends only on `2b` messages. -/
 def VotedForIn (a : Acceptor) (v : Value) (b : Ballot) : Prop :=
   ∃ m ∈ sent, m = Message.twob b v a
 
@@ -19,6 +20,7 @@ def ChosenIn (v: Value) (b: Ballot) : Prop :=
 def Chosen (v : Value) : Prop :=
   ∃ b : Ballot, ChosenIn sent Quorums v b
 
+/-- Depends on `1b` and `2b` messages. -/
 def WontVoteIn (a : Acceptor) (b : Ballot) : Prop :=
   (∀ v : Value, ¬VotedForIn sent a v b)
   ∧ (∃ m ∈ sent, match m with
@@ -26,6 +28,7 @@ def WontVoteIn (a : Acceptor) (b : Ballot) : Prop :=
                  | Message.twob b' _ a'   => a' = a ∧ b' > b
                  | _                      => false)
 
+/-- Depends on `1b` and `2b` messages. -/
 def SafeAt (v : Value) (b : Ballot) : Prop :=
   ∀ b2 < b, ∃ Q ∈ Quorums, ∀ a ∈ Q, VotedForIn sent a v b2 ∨ WontVoteIn sent a b2
 

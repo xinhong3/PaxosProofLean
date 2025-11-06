@@ -69,7 +69,7 @@ lemma safeAt_is_inductive_phase1a
       ∀ {A b2}, WontVoteIn sent A b2 → WontVoteIn sent' A b2 := by
     intro A b2 hW; unfold WontVoteIn at *
     constructor
-    · refine send_add_non_twob_preserves_no_vote sent sent' hW.left h1a (by simp)
+    · refine no_votes_stable_if_no_2b_added sent sent' hW.left h1a (by simp)
     · exact exists_mem_of_subset h_mono hW.right
   exact safeAt_inductive_template
           sent sent' Quorums v b h_mono h_wontVoteIn_preserves hSafe
@@ -89,7 +89,7 @@ lemma safeAt_is_inductive_phase1b
         cases r with
         | twob _ _ _ =>
           simp [-Send] at hmatch
-          refine send_add_non_twob_preserves_no_vote sent sent' hW.left hmatch.right (by simp)
+          refine no_votes_stable_if_no_2b_added sent sent' hW.left hmatch.right (by simp)
         | _ => simp at *
       | _ => simp at *
     · exact exists_mem_of_subset h_mono hW.right
@@ -105,7 +105,7 @@ lemma safeAt_is_inductive_phase2a
     intro A b2 hW; unfold WontVoteIn at *
     constructor
     · rcases h2a with ⟨_, ⟨_,_,_,_,_,_,_, h_send⟩⟩
-      refine send_add_non_twob_preserves_no_vote sent sent' hW.left h_send (by simp)
+      refine no_votes_stable_if_no_2b_added sent sent' hW.left h_send (by simp)
     · exact exists_mem_of_subset h_mono hW.right
   exact safeAt_inductive_template
           sent sent' Quorums v b h_mono h_wontVoteIn_preserves hSafe
@@ -173,58 +173,54 @@ lemma SafeAtStable {v: Value} {b: Ballot}
 -- The following four lemmas show that `MsgInv` is inductive over all four phases.
 
 lemma msginv_is_inductive_phase1a
-    (hInv: MsgInv sent Quorums)
-    (h1a: Phase1a sent sent' b) : MsgInv sent' Quorums := by
-  have h_sent_monotonic : sent ⊆ sent' := by
-    unfold Phase1a at h1a
-    exact send_monotonic h1a
-  have h1a_copy := h1a
-  unfold Phase1a at h1a; unfold MsgInv at *
-  rw [h1a]
-  intro m h_m_in_sent'
-  by_cases h_m_eq_onea_msg : m = Message.onea b
-  · simp [*] at *
-  · have h_m_in_sent : m ∈ sent := by
-      simp [h_m_eq_onea_msg] at h_m_in_sent'; exact h_m_in_sent'
-    specialize hInv m h_m_in_sent
+    (hInv : MsgInv sent Quorums)
+    (h1a  : Phase1a sent sent' b) : MsgInv sent' Quorums := by
+  have h_mono : sent ⊆ sent' := send_monotonic h1a
+  have h_no_1b_or_2b_added : ∀ m ∈ sent' \ sent, ¬ (is1b m ∨ is2b m) := by simp_all
+  have h_no_2b_added : ∀ m ∈ sent' \ sent, ¬ is2b m := by simp_all
+  unfold MsgInv at *
+  unfold Phase1a at h1a;
+  intro m hm'; rw [h1a] at hm'
+  rcases Or.symm hm' with (rfl | hm)  -- whether m is the new message
+  · -- Case 1: `m` is the new `onea` message. For `onea`, MsgInv holds trivially.
+    simp
+  · -- Case 2: `m ∈ sent`. Need to go through each type and show the invariant holds.
+    specialize hInv m hm
     cases m with
-    | onea b1 => simp
+    | onea _ => simp
     | oneb b1 maxVBal maxVal a1 =>
-      simp at hInv; simp [-Send]
+      simp only at hInv; simp [-Send]
+      rcases hInv with ⟨hInv_1b_1, hInv_1b_2⟩
       match maxVBal, maxVal with
-      | some maxVBal, some maxVal =>
-        simp [-Send]; simp at hInv
-        apply And.intro
-        · rw [←h1a]
-          exact votedForIn_monotonic sent sent' h_sent_monotonic hInv.left
-        · intro b' hb_lower hb_upper
-          have h_not_voted := hInv.right
-          specialize h_not_voted b'
-          simp [hb_lower, hb_upper] at h_not_voted
-          rw [←h1a]
-          refine send_add_non_twob_preserves_no_vote sent sent' h_not_voted h1a (by simp)
-      | none, some maxVal | some maxVBal, none => simp at hInv;
+      | some rbal, some rval =>
+        simp only at hInv_1b_1; simp [-Send]
+        constructor
+        · exact votedForIn_monotonic sent sent' h_mono hInv_1b_1
+        · have oneb_inv_2_sent' := oneb_inv_2_stable_if_no_twob_added
+                                    sent sent' h_mono h_no_2b_added hInv_1b_2
+          intro b' hle hlt
+          simpa [not_exists] using (oneb_inv_2_sent' b' ⟨hle, hlt⟩)
       | none, none =>
-        simp [-Send]; simp at hInv;
-        intro b' hb_lower
-        have h_not_voted := hInv
-        specialize h_not_voted b'
-        simp [hb_lower] at h_not_voted
-        rw [←h1a]
-        refine send_add_non_twob_preserves_no_vote sent sent' h_not_voted h1a (by simp)
+        simp only at hInv_1b_1; simp [-Send]
+        intro b' hle hlt
+        simp at hInv_1b_2
+        exact no_votes_stable_if_no_2b_added
+                sent sent' (hInv_1b_2 b' hle) (h1a) (by simp) hlt
+      | some rbal, none | none, some rval =>
+        simp at hInv_1b_1
     | twoa b1 v1 =>
-      simp at hInv; simp [-Send]
-      rw [←h1a]
-      apply And.intro
-      · exact safeAt_is_inductive_phase1a sent sent' Quorums h1a_copy hInv.left
-      · have h_inv_right := hInv.right
-        intro m2 h_m2_in_sent'
-        specialize h_inv_right m2
-        cases m2 <;> simp [*] at *; apply h_inv_right at h_m2_in_sent'; exact h_m2_in_sent'
-    | twob b1 v1 a1 =>
-      match b1, v1 with
-      | some b1, some v1 => simp [hInv]
-      | none, some v1 | some b1, none | none, none => simp;
+      simp only at hInv
+      rcases hInv with ⟨hSafeAt, hUnique⟩
+      refine And.intro ?safe ?uniq
+      · exact safeAt_stable_if_no_1b2b_added
+                Quorums sent sent' h_mono h_no_1b_or_2b_added hSafeAt
+      · intro m2 hm2_in_sent'
+        rw [h1a] at hm2_in_sent'
+        rcases hm2_in_sent' with (hm2_in_sent | rfl)
+        · specialize hUnique m2 hm2_in_sent
+          exact hUnique
+        · simp
+     | twob b1 v1 a1 => cases b1 <;> cases v1 <;> simp [*]
 
 lemma msginv_is_inductive_phase1b
     (hInv: MsgInv sent Quorums)
@@ -236,7 +232,7 @@ lemma msginv_is_inductive_phase1b
     cases r with
     | twob rbal rval racc =>
       have h_same_accptor : a = racc := by
-        have h_exists_b_v_with_same_acceptor := mem_max_prop_is_twob sent hr
+        have h_exists_b_v_with_same_acceptor := mem_max_prop_is_2b sent hr
         simp [*] at *
         exact id (Eq.symm h_exists_b_v_with_same_acceptor)
       simp [-Send] at hmatch
@@ -247,7 +243,7 @@ lemma msginv_is_inductive_phase1b
         unfold VotedForIn
         simp [hmatch]
       unfold MsgInv at hInv; unfold MsgInv
-      have h_exists_b_v_with_same_acceptor := mem_max_prop_is_twob sent hr
+      have h_exists_b_v_with_same_acceptor := mem_max_prop_is_2b sent hr
       intro m' hm'
       -- m' is the witness message sent
       by_cases h_m_eq_oneb : m' = Message.oneb mbal rbal rval a
