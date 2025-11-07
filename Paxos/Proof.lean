@@ -39,9 +39,8 @@ lemma VotedOnce
   exact h_exists_2a_with_v2.symm
 
 
-/-- A template for proving `SafeAtStable`. For each phase, we only need to show that
-`WontVoteIn` is preserved from `sent` to `sent'`. In other words, each phase only needs to
-provide a proof for `h_wontVoteIn_preserves`. -/
+/-- A template for proving `SafeAtStable`. Each phase only need to provide the proof that
+`WontVoteIn sent' a b` holds. -/
 lemma safeAt_inductive_template
     (v: Value) (b: Ballot)
     (h_sent_monotonic : sent ⊆ sent')
@@ -50,12 +49,12 @@ lemma safeAt_inductive_template
   intro hSafe
   unfold SafeAt at *
   intro b2 hxb
-  rcases hSafe b2 hxb with ⟨Q, hQ, hAll⟩
+  rcases hSafe b2 hxb with ⟨Q, h_Q_in_quorums, h_all_voted_or_wont_vote⟩
   have hV : ∀ {a}, a ∈ Q → VotedForIn sent a v b2 → VotedForIn sent' a v b2 := by
     exact fun {a} a_1 a_2 => votedForIn_monotonic sent sent' h_sent_monotonic a_2
-  refine ⟨Q, hQ, ?_⟩
+  refine ⟨Q, h_Q_in_quorums, ?forAllAccInQ_votedFor_or_wontVote⟩
   intro A hA
-  cases hAll A hA with
+  cases h_all_voted_or_wont_vote A hA with
   | inl hVoted  => exact Or.inl (hV hA hVoted)
   | inr hWont   => exact Or.inr (h_wontVoteIn_preserves hWont)
 
@@ -83,13 +82,13 @@ lemma safeAt_is_inductive_phase1b
     intro A b2 hW; unfold WontVoteIn at *
     constructor
     · unfold Phase1b at h1b
-      rcases h1b with ⟨m, hm, r, hr, hmatch⟩
+      rcases h1b with ⟨m, _h_m_in_sent, r, _h_r_in_sent, hmatch⟩
       cases m with
       | onea _ =>
         cases r with
         | twob _ _ _ =>
           simp [-Send] at hmatch
-          refine no_votes_stable_if_no_2b_added sent sent' hW.left hmatch.right (by simp)
+          exact no_votes_stable_if_no_2b_added sent sent' hW.left hmatch.right (by simp)
         | _ => simp at *
       | _ => simp at *
     · exact exists_mem_of_subset h_mono hW.right
@@ -127,16 +126,15 @@ lemma safeAt_is_inductive_phase2b
         by_cases ha : a = A
         · have h_not_eq_bal : b2 ≠ b1 := by
             rcases hW with ⟨_, ⟨m_1b_2b, hm_sent, hm_match⟩⟩
-            let m_1b_2b_c := m_1b_2b
+            let m_1b_2b_copy := m_1b_2b
             cases m_1b_2b with
             | oneb bb _ _ a1 | twob bb _ a1 =>
               all_goals         -- consolidate the two cases
-              simp at hm_match
-              have hle := hpo m_1b_2b_c hm_sent
-              simp [hm_match.left, ha, m_1b_2b_c] at hle
-              -- specific to oneb
+              simp at hm_match  -- the first three lines are the same
+              have hle := hpo m_1b_2b_copy hm_sent
+              simp [hm_match.left, ha, m_1b_2b_copy] at hle
+              -- the first `try` handles `1b` case, the second handles `2b` case.
               try exact ne_of_lt (lt_of_lt_of_le hm_match.right hle)
-              -- specific to twob
               try cases bb with
                 | none    => simp at *
                 | some bb => exact ne_of_lt (lt_of_lt_of_le hm_match.right hle)
@@ -180,12 +178,12 @@ lemma msginv_is_inductive_phase1a
   have h_no_2b_added : ∀ m ∈ sent' \ sent, ¬ is2b m := by simp_all
   unfold MsgInv at *
   unfold Phase1a at h1a;
-  intro m hm'; rw [h1a] at hm'
-  rcases Or.symm hm' with (rfl | hm)  -- whether m is the new message
+  intro m h_m_in_sent'; rw [h1a] at h_m_in_sent'
+  rcases Or.symm h_m_in_sent' with (rfl | h_m_in_sent)  -- whether m is the new message
   · -- Case 1: `m` is the new `onea` message. For `onea`, MsgInv holds trivially.
     simp
   · -- Case 2: `m ∈ sent`. Need to go through each type and show the invariant holds.
-    specialize hInv m hm
+    specialize hInv m h_m_in_sent
     cases m with
     | onea _ => simp
     | oneb b1 maxVBal maxVal a1 =>
@@ -223,114 +221,94 @@ lemma msginv_is_inductive_phase1a
      | twob b1 v1 a1 => cases b1 <;> cases v1 <;> simp [*]
 
 lemma msginv_is_inductive_phase1b
-    (hInv: MsgInv sent Quorums)
-    (h1b: Phase1b sent sent' a) : MsgInv sent' Quorums := by
-  have h1b_copy := h1b
-  rcases h1b with ⟨m, hmsent, r, hr, hmatch⟩
-  cases m with
+    (hInv : MsgInv sent Quorums)
+    (h1b : Phase1b sent sent' a) : MsgInv sent' Quorums := by
+  have ⟨m_1a, _, r, h_r_in_sent, hmatch⟩ := h1b
+  cases m_1a with
   | onea mbal =>
     cases r with
     | twob rbal rval racc =>
-      have h_same_accptor : a = racc := by
-        have h_exists_b_v_with_same_acceptor := mem_max_prop_is_2b sent hr
-        simp [*] at *
-        exact id (Eq.symm h_exists_b_v_with_same_acceptor)
+      have h_exists_b_v_with_same_acceptor := mem_max_prop_is_2b sent h_r_in_sent
+      have h_r_has_same_acc : a = racc := by simp_all
       simp [-Send] at hmatch
-      have h_sent_monotonic : sent ⊆ sent' := by exact send_monotonic hmatch.right
-      have h_votedForIn_same :
-          ∀ a v b, VotedForIn sent a v b ↔ VotedForIn sent' a v b := by
-        intro a v b
-        unfold VotedForIn
-        simp [hmatch]
-      unfold MsgInv at hInv; unfold MsgInv
-      have h_exists_b_v_with_same_acceptor := mem_max_prop_is_2b sent hr
-      intro m' hm'
-      -- m' is the witness message sent
-      by_cases h_m_eq_oneb : m' = Message.oneb mbal rbal rval a
-      · simp [h_m_eq_oneb]
+      rcases hmatch with ⟨h_no_2a_with_same_ballot, h_send⟩
+      have h_mono : sent ⊆ sent' := by exact send_monotonic h_send
+      unfold MsgInv at *
+      intro m2 hm2; rw [h_send] at hm2
+      rcases Or.symm hm2 with h_m2_is_1b | h_m2_in_sent
+      · -- Case1: m  is the new `1b` message
+        simp at h_m2_is_1b; simp [h_m2_is_1b]
         match rbal, rval with
-        | some rbal, none | none, some rval =>
-          simp; unfold Phase1b at h1b_copy
-          rw [h_same_accptor] at hr
-          apply max_prop_empty_ballot_iff_empty_value at hr
-          simp at hr
-        | none, none =>
-          simp; rw [←h_same_accptor] at hr
-          intro b hb_upper
-          have h_not_voted_in_sent :=
-            max_prop_empty_implies_not_voted_in_prev_ballots sent hr b
-          exact fun x ↦
-            (fun {a b} ha ↦ (iff_false_left ha).mp) (h_not_voted_in_sent x)
-              (h_votedForIn_same a x b)
-        | some rbal, some rval =>
+        | some rbal, some rval =>     -- case when max_prop is non-empty
           simp
           constructor
-          · refine votedForIn_monotonic sent sent' h_sent_monotonic ?_
-            rw [h_same_accptor] at *
-            exact max_prop_not_empty_implies_voted_for sent hr
+          · refine votedForIn_monotonic sent sent' h_mono ?_
+            rw [h_r_has_same_acc] at *
+            exact max_prop_not_empty_implies_voted_for sent h_r_in_sent
           · have h_not_voted_for_greater_ballots :
-                ∀ (b' : Ballot), rbal + 1 ≤ b' → b' < mbal → ∀ (x : Value),
+                ∀ (b' : Ballot), some rbal + 1 ≤ b' → b' < some mbal → ∀ (x : Value),
                 ¬VotedForIn sent a x b' := by
-              rw [h_same_accptor] at hr
+              rw [h_r_has_same_acc] at h_r_in_sent
               have h_not_voted_for_greater_ballots :=
-                max_prop_implies_not_voted_for_greater_ballots sent hr
+                max_prop_implies_not_voted_for_greater_ballots sent h_r_in_sent
               intro b' hb_lower hb_upper x
               specialize h_not_voted_for_greater_ballots b' x hb_lower
-              simp [h_same_accptor]; exact h_not_voted_for_greater_ballots
-            -- I think the goal is clear enough but for the following:
-            -- simp [h_not_voted_for_greater_ballots, h_votedForIn_same] didn't work.
-            exact fun b' a_1 a_2 x ↦
-              (fun {a b} ha ↦ (iff_false_left ha).mp)
-                (h_not_voted_for_greater_ballots b' a_1 a_2 x) (h_votedForIn_same a x b')
-        -- TODO: The following part is repetitive, as I copied this from the 1a case
-        -- and just changes a few things. How to get rid of this repetition?
-      · have h_m'_in_sent : m' ∈ sent := by
-          simp [*] at *; simp [h_m_eq_oneb] at hm'; exact hm'
-        cases hm' : m' with
+              simp [h_r_has_same_acc]; exact h_not_voted_for_greater_ballots
+            intro b' hb'_lower hb'_upper
+            exact no_votes_stable_if_no_2b_added
+                    sent sent' (h_not_voted_for_greater_ballots b' hb'_lower hb'_upper)
+                    h_send (by simp)
+        | none, none =>               -- case when max_prop is empty
+          simp; rw [←h_r_has_same_acc] at h_r_in_sent
+          intro b hb_upper
+          have h_not_voted_in_sent :=
+            max_prop_empty_implies_not_voted_in_prev_ballots sent h_r_in_sent b
+          exact fun x => no_votes_stable_if_no_2b_added
+                           sent sent' h_not_voted_in_sent h_send (by simp) x
+        | some rbal, none | none, some rval =>
+          rw [h_r_has_same_acc] at h_r_in_sent
+          apply max_prop_empty_ballot_iff_empty_value at h_r_in_sent
+          simp at h_r_in_sent
+      · cases m2 with
         | onea b1 => simp
         | oneb b1 maxVBal maxVal a1 =>
-          simp at hInv; simp [-Send]
+          simp only at hInv; simp [-Send]
+          have h_mono : sent ⊆ sent' := by exact send_monotonic h_send
+          have h_no_2b_added : ∀ m ∈ sent' \ sent, ¬ is2b m := by simp_all
+          rcases (hInv (Message.oneb b1 maxVBal maxVal a1) h_m2_in_sent) with
+                   ⟨hInv_1b_1, hInv_1b_2⟩
           match maxVBal, maxVal with
+          | some rbal, some rval =>
+            simp only at hInv_1b_1; simp [-Send]
+            constructor
+            · exact votedForIn_monotonic sent sent' h_mono hInv_1b_1
+            · have oneb_inv_2_sent' := oneb_inv_2_stable_if_no_twob_added
+                                        sent sent' h_mono h_no_2b_added hInv_1b_2
+              intro b' hle hlt
+              simpa [not_exists] using (oneb_inv_2_sent' b' ⟨hle, hlt⟩)
           | none, none =>
-            simp
-            specialize hInv m' h_m'_in_sent; simp [hm'] at hInv;
-            exact fun b' a x ↦
-              (fun {a b} ha ↦ (iff_false_left ha).mp)
-                (hInv b' a x) (h_votedForIn_same a1 x b')
-          | some maxVBal, none | none, some maxVal =>
-            simp;
-            specialize hInv m' h_m'_in_sent
-            simp [hm'] at hInv;
-          | some maxVBal, some maxVal =>
-            simp [-Send]; specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
-            apply And.intro
-            · rw [←h_votedForIn_same]; exact hInv.left
-            · intro b' hb_lower hb_upper x
-              have h_not_voted := hInv.right
-              specialize h_not_voted b'
-              simp [hb_lower, hb_upper] at h_not_voted
-              specialize h_not_voted x
-              unfold VotedForIn at *
-              simp [hmatch]; simp at h_not_voted; exact h_not_voted
+            simp only at hInv_1b_1; simp [-Send]
+            intro b' hle hlt
+            simp at hInv_1b_2
+            exact no_votes_stable_if_no_2b_added
+                    sent sent' (hInv_1b_2 b' hle) h_send (by simp) hlt
+          | some rbal, none | none, some rval =>
+            simp at hInv_1b_1
         | twoa b1 v1 =>
-          simp at hInv; simp [-Send]
-          specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
-          apply And.intro
-          · exact safeAt_is_inductive_phase1b sent sent' Quorums h1b_copy hInv.left
-          · have h_inv_right := hInv.right
-            intro m2 h_m2_in_sent'
-            specialize h_inv_right m2
-            cases m2 <;>  simp [*] at *;
-                          apply h_inv_right at h_m2_in_sent';
-                          exact h_m2_in_sent'
+          simp only at hInv
+          specialize hInv (Message.twoa b1 v1) h_m2_in_sent
+          rcases hInv with ⟨hSafeAt, hUnique⟩
+          refine And.intro ?safe ?uniq
+          · exact safeAt_is_inductive_phase1b sent sent' Quorums h1b hSafeAt
+          · intro m_2a' h_m_2a'_in_sent'
+            rw [h_send] at h_m_2a'_in_sent'
+            rcases h_m_2a'_in_sent' with (h_m_2a'_in_sent | rfl)
+            · exact hUnique m_2a' h_m_2a'_in_sent
+            · simp
         | twob b1 v1 a1 =>
           match b1, v1 with
-          | none, none | some b1, none | none, some v1 => simp;
-          | some b1, some v1 =>
-            simp
-            specialize hInv m' h_m'_in_sent
-            simp [hm'] at hInv
-            exact h_sent_monotonic hInv
+          | some b1, some v1 => exact h_mono (hInv (Message.twob b1 v1 a1) h_m2_in_sent)
+          | none, none | some b1, none | none, some v1 => simp
     | _ => simp at hmatch
   | _ => simp at hmatch
 
