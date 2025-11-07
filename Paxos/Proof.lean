@@ -38,20 +38,17 @@ lemma VotedOnce
   apply h_exists_2a_with_v1.right at h_exists_2a_with_v2; simp at h_exists_2a_with_v2
   exact h_exists_2a_with_v2.symm
 
-
 /-- A template for proving `SafeAtStable`. Each phase only need to provide the proof that
 `WontVoteIn sent' a b` holds. -/
 lemma safeAt_inductive_template
     (v: Value) (b: Ballot)
-    (h_sent_monotonic : sent ⊆ sent')
+    (h_mono : sent ⊆ sent')
     (h_wontVoteIn_preserves : ∀ {a b2}, WontVoteIn sent a b2 → WontVoteIn sent' a b2)
     : SafeAt sent Quorums v b → SafeAt sent' Quorums v b := by
-  intro hSafe
-  unfold SafeAt at *
-  intro b2 hxb
+  intro hSafe b2 hxb
   rcases hSafe b2 hxb with ⟨Q, h_Q_in_quorums, h_all_voted_or_wont_vote⟩
   have hV : ∀ {a}, a ∈ Q → VotedForIn sent a v b2 → VotedForIn sent' a v b2 := by
-    exact fun {a} a_1 a_2 => votedForIn_monotonic sent sent' h_sent_monotonic a_2
+    exact fun {a} a_1 a_2 => votedForIn_monotonic sent sent' h_mono a_2
   refine ⟨Q, h_Q_in_quorums, ?forAllAccInQ_votedFor_or_wontVote⟩
   intro A hA
   cases h_all_voted_or_wont_vote A hA with
@@ -122,7 +119,7 @@ lemma safeAt_is_inductive_phase2b
       cases m2a with
       | twoa b1 v1 =>
         simp [-Send] at hmatch
-        rcases hmatch with ⟨hpo, h_send⟩
+        rcases hmatch with ⟨h_no_greater_ballot, h_send⟩
         by_cases ha : a = A
         · have h_not_eq_bal : b2 ≠ b1 := by
             rcases hW with ⟨_, ⟨m_1b_2b, hm_sent, hm_match⟩⟩
@@ -131,7 +128,7 @@ lemma safeAt_is_inductive_phase2b
             | oneb bb _ _ a1 | twob bb _ a1 =>
               all_goals         -- consolidate the two cases
               simp at hm_match  -- the first three lines are the same
-              have hle := hpo m_1b_2b_copy hm_sent
+              have hle := h_no_greater_ballot m_1b_2b_copy hm_sent
               simp [hm_match.left, ha, m_1b_2b_copy] at hle
               -- the first `try` handles `1b` case, the second handles `2b` case.
               try exact ne_of_lt (lt_of_lt_of_le hm_match.right hle)
@@ -321,7 +318,7 @@ lemma msginv_is_inductive_phase2a
                                     h_all_acc_in_Q_sent_oneb,
                                     h_all_not_voted_or_some_voted,
                                     h2a⟩⟩
-  have h_sent_monotonic : sent ⊆ sent' := by exact send_monotonic h2a
+  have h_mono : sent ⊆ sent' := by exact send_monotonic h2a
   have h_votedForIn_same : ∀ a v b, VotedForIn sent a v b ↔ VotedForIn sent' a v b := by
     intro a v b
     unfold VotedForIn
@@ -614,14 +611,12 @@ lemma msginv_is_inductive_phase2a
 lemma msginv_is_inductive_phase2b
     (hInv: MsgInv sent Quorums)
     (h2b: Phase2b sent sent' a) : MsgInv sent' Quorums := by
-  have h2b_copy := h2b
-  unfold Phase2b at h2b
-  rcases h2b with ⟨m2a, h_2a_sent, hmatch⟩
+  have ⟨m2a, h_m2a_in_sent, hmatch⟩ := h2b
   cases m2a with
   | twoa b v =>
     simp [-Send] at hmatch
-    rcases hmatch with ⟨hpo, hmatch⟩
-    have h_sent_monotonic : sent ⊆ sent' := by exact send_monotonic hmatch
+    rcases hmatch with ⟨h_no_greater_ballot, h_send⟩
+    have h_sent_monotonic : sent ⊆ sent' := by exact send_monotonic h_send
     unfold MsgInv at *
     intro m' hm_sent'
     by_cases h_m'_in_sent : m' ∈ sent
@@ -638,16 +633,16 @@ lemma msginv_is_inductive_phase2b
             simp [hb_lower] at h_not_voted
             specialize h_not_voted x
             unfold VotedForIn at *
-            simp [hmatch]; simp at h_not_voted
+            simp [h_send]; simp at h_not_voted
             constructor
             · intro hb_eq hv_eq ha_eq
               have h_inv_right := hInv
               specialize h_inv_right b' hb_lower x
-              specialize hpo m' h_m'_in_sent; simp [hm'] at hpo
-              have h_b1_le_b : b1 ≤ b := hpo ha_eq
+              specialize h_no_greater_ballot m' h_m'_in_sent; simp [hm'] at h_no_greater_ballot
+              have h_b1_le_b : b1 ≤ b := h_no_greater_ballot ha_eq
               have hf : b1 < b1 := by
                 rw [hb_eq] at hb_lower
-                exact Nat.lt_of_le_of_lt (hpo ha_eq) hb_lower
+                exact Nat.lt_of_le_of_lt (h_no_greater_ballot ha_eq) hb_lower
               simp at hf
             · exact h_not_voted
           | some maxVBal, none | none, some maxVal =>
@@ -662,22 +657,22 @@ lemma msginv_is_inductive_phase2b
               simp [hb_lower, hb_upper] at h_not_voted
               specialize h_not_voted x
               unfold VotedForIn at *
-              simp [hmatch]; simp at h_not_voted
+              simp [h_send]; simp at h_not_voted
               constructor
               · intro hb_eq hv_eq ha_eq
                 have h_inv_right := hInv.right
                 specialize h_inv_right b' hb_lower hb_upper x
-                specialize hpo m' h_m'_in_sent; simp [hm'] at hpo
-                have h_b1_le_b : b1 ≤ b := hpo ha_eq
+                specialize h_no_greater_ballot m' h_m'_in_sent; simp [hm'] at h_no_greater_ballot
+                have h_b1_le_b : b1 ≤ b := h_no_greater_ballot ha_eq
                 rw [hb_eq] at hb_upper
-                have hf : b1 < b1 := by exact Nat.lt_of_le_of_lt (hpo ha_eq) hb_upper
+                have hf : b1 < b1 := by exact Nat.lt_of_le_of_lt (h_no_greater_ballot ha_eq) hb_upper
                 simp at hf
               · exact h_not_voted
         | twoa b1 v1 =>
           simp at hInv; simp [-Send]
           specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
           apply And.intro
-          · exact safeAt_is_inductive_phase2b sent sent' Quorums h2b_copy hInv.left
+          · exact safeAt_is_inductive_phase2b sent sent' Quorums h2b hInv.left
           · have h_inv_right := hInv.right
             intro m2 h_m2_in_sent'
             specialize h_inv_right m2
@@ -694,21 +689,20 @@ lemma msginv_is_inductive_phase2b
             exact h_sent_monotonic hInv
     · have m'_eq_twob : m' = Message.twob b v a := by simp [*] at *; exact hm_sent'
       simp [m'_eq_twob]
-      exact h_sent_monotonic h_2a_sent
+      exact h_sent_monotonic h_m2a_in_sent
   | _ => simp [*] at *
 
 /-- THEOREM Invariant in CL. -/
 theorem Invariant {σ: ℕ → Set Message}
     (hSpec : PaxosSpec Quorums σ) : ∀ n, MsgInv (σ n) Quorums := by
   intro n
+  unfold PaxosSpec Init at *
   induction n with
   | zero   =>
-    unfold PaxosSpec Init at hSpec;
     simp [MsgInv, hSpec.1]
   | succ k ih =>
     let sent := σ k; let sent' := σ (k + 1)
-    unfold PaxosSpec at hSpec
-    have hStep := hSpec.2 k
+    have hStep := hSpec.right k
     cases hStep with
     | inl hNext =>
       have hInvHoldsPrev: MsgInv sent Quorums := ih
