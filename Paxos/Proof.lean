@@ -563,7 +563,7 @@ lemma msginv_is_inductive_phase2a
       | some maxVBal, some maxVal =>
         simp [-Send]; specialize hInv m' hm_sent'; simp [hm'] at hInv
         constructor
-        · exact votedForIn_monotonic sent sent' h_sent_monotonic hInv.left
+        · exact votedForIn_monotonic sent sent' h_mono hInv.left
         · intro b' hb_lower hb_upper x
           have h_not_voted := hInv.right
           specialize h_not_voted b'
@@ -606,7 +606,7 @@ lemma msginv_is_inductive_phase2a
         simp
         specialize hInv m' hm_sent'
         simp [hm'] at hInv
-        exact h_sent_monotonic hInv
+        exact h_mono hInv
 
 lemma msginv_is_inductive_phase2b
     (hInv: MsgInv sent Quorums)
@@ -616,80 +616,52 @@ lemma msginv_is_inductive_phase2b
   | twoa b v =>
     simp [-Send] at hmatch
     rcases hmatch with ⟨h_no_greater_ballot, h_send⟩
-    have h_sent_monotonic : sent ⊆ sent' := by exact send_monotonic h_send
+    have h_mono : sent ⊆ sent' := by exact send_monotonic h_send
     unfold MsgInv at *
-    intro m' hm_sent'
-    by_cases h_m'_in_sent : m' ∈ sent
-    · cases hm': m' with
-        | onea b1 => simp
-        | oneb b1 maxVBal maxVal a1 =>
-          simp at hInv; simp [-Send]
-          match maxVBal, maxVal with
-          | none, none =>
-            simp; specialize hInv m' h_m'_in_sent; simp [hm'] at hInv;
-            intro b' hb_lower x
-            have h_not_voted := hInv
-            specialize h_not_voted b'
-            simp [hb_lower] at h_not_voted
-            specialize h_not_voted x
-            unfold VotedForIn at *
-            simp [h_send]; simp at h_not_voted
-            constructor
-            · intro hb_eq hv_eq ha_eq
-              have h_inv_right := hInv
-              specialize h_inv_right b' hb_lower x
-              specialize h_no_greater_ballot m' h_m'_in_sent; simp [hm'] at h_no_greater_ballot
-              have h_b1_le_b : b1 ≤ b := h_no_greater_ballot ha_eq
-              have hf : b1 < b1 := by
-                rw [hb_eq] at hb_lower
-                exact Nat.lt_of_le_of_lt (h_no_greater_ballot ha_eq) hb_lower
-              simp at hf
-            · exact h_not_voted
-          | some maxVBal, none | none, some maxVal =>
-            simp; specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
+    intro m1 h_m1_in_sent'
+    rw [h_send] at h_m1_in_sent'
+    rcases Or.symm h_m1_in_sent' with (h_m1_is_2b | h_m1_in_sent)
+    · simp_all              -- `m1` is the new `2b` message
+    · cases hm1: m1 with    -- `m1 ∈ sent`, we show for each type the invariant holds
+      | onea b1 => simp
+      | oneb b1 maxVBal maxVal a1 => -- the main effort is for the `1b` case
+        simp at hInv; simp [-Send]
+        specialize hInv m1 h_m1_in_sent; simp [hm1] at hInv
+        have ⟨h_a1_voted, h_a1_not_voted_in_between⟩ := hInv
+        constructor
+        · match maxVBal, maxVal with
           | some maxVBal, some maxVal =>
-            simp [-Send]; specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
-            constructor
-            · exact votedForIn_monotonic sent sent' h_sent_monotonic hInv.left
-            · intro b' hb_lower hb_upper x
-              have h_not_voted := hInv.right
-              specialize h_not_voted b'
-              simp [hb_lower, hb_upper] at h_not_voted
-              specialize h_not_voted x
-              unfold VotedForIn at *
-              simp [h_send]; simp at h_not_voted
-              constructor
-              · intro hb_eq hv_eq ha_eq
-                have h_inv_right := hInv.right
-                specialize h_inv_right b' hb_lower hb_upper x
-                specialize h_no_greater_ballot m' h_m'_in_sent; simp [hm'] at h_no_greater_ballot
-                have h_b1_le_b : b1 ≤ b := h_no_greater_ballot ha_eq
-                rw [hb_eq] at hb_upper
-                have hf : b1 < b1 := by exact Nat.lt_of_le_of_lt (h_no_greater_ballot ha_eq) hb_upper
-                simp at hf
-              · exact h_not_voted
-        | twoa b1 v1 =>
-          simp at hInv; simp [-Send]
-          specialize hInv m' h_m'_in_sent; simp [hm'] at hInv
-          apply And.intro
-          · exact safeAt_is_inductive_phase2b sent sent' Quorums h2b hInv.left
-          · have h_inv_right := hInv.right
-            intro m2 h_m2_in_sent'
-            specialize h_inv_right m2
-            cases m2 <;>  simp [*] at *;
-                          apply h_inv_right at h_m2_in_sent';
-                          exact h_m2_in_sent'
-        | twob b1 v1 a1 =>
-          match b1, v1 with
-          | none, none | some b1, none | none, some v1 => simp
-          | some b1, some v1 =>
-            simp
-            specialize hInv m' h_m'_in_sent
-            simp [hm'] at hInv
-            exact h_sent_monotonic hInv
-    · have m'_eq_twob : m' = Message.twob b v a := by simp [*] at *; exact hm_sent'
-      simp [m'_eq_twob]
-      exact h_sent_monotonic h_m2a_in_sent
+            simp at *
+            exact votedForIn_monotonic sent sent' h_mono h_a1_voted
+          | none, none => simp
+        · intro b' hb'_lower hb'_upper x
+          have h_a1_no_votes_in_b' := h_a1_not_voted_in_between b' hb'_lower hb'_upper x
+          unfold VotedForIn at *
+          simp [h_send]; simp at h_a1_no_votes_in_b'
+          constructor
+          · intro hb_eq hv_eq ha_eq
+            specialize h_a1_not_voted_in_between b' hb'_lower hb'_upper x
+            specialize h_no_greater_ballot m1 h_m1_in_sent
+            simp [hm1] at h_no_greater_ballot
+            have h_b1_le_b : b1 ≤ b := h_no_greater_ballot ha_eq
+            rw [hb_eq] at hb'_upper
+            have h_contra : b1 < b1 := by
+              exact Nat.lt_of_le_of_lt (h_no_greater_ballot ha_eq) hb'_upper
+            simp at h_contra
+          · exact h_a1_no_votes_in_b'
+      | twoa b1 v1 =>
+        simp at hInv; simp [-Send]
+        specialize hInv m1 h_m1_in_sent; simp [hm1] at hInv
+        apply And.intro
+        · exact safeAt_is_inductive_phase2b sent sent' Quorums h2b hInv.left
+        · have h_inv_right := hInv.right
+          intro m2 h_m2_in_sent'
+          specialize h_inv_right m2
+          cases m2 <;> simp_all
+      | twob b1 v1 a1 =>
+        match b1, v1 with
+        | some b1, some v1 => simp; specialize hInv m1 h_m1_in_sent; simp_all
+        | none, none | some b1, none | none, some v1 => simp
   | _ => simp [*] at *
 
 /-- THEOREM Invariant in CL. -/
