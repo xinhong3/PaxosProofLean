@@ -85,7 +85,7 @@ lemma safeAt_is_inductive_phase1b
       | onea _ =>
         cases r with
         | twob _ _ _ =>
-          simp [-Send] at hmatch
+          simp only at hmatch
           simpa [votedForIn_same_if_no_2b_send sent sent' hmatch.right] using hW.left
         | _ => simp at *
       | _ => simp at *
@@ -119,7 +119,7 @@ lemma safeAt_is_inductive_phase2b
       rcases h2b with ⟨m2a, h_twoa_in_sent, hmatch⟩
       cases m2a with
       | twoa b1 v1 =>
-        simp [-Send] at hmatch
+        simp only at hmatch
         rcases hmatch with ⟨h_no_greater_ballot, h_send⟩
         by_cases ha : a = A
         · have h_not_eq_bal : b2 ≠ b1 := by
@@ -185,19 +185,16 @@ lemma msginv_is_inductive_phase1a
     cases m with
     | onea _ => simp
     | oneb b1 maxVBal maxVal a1 =>
-      simp only at hInv; simp [-Send]
+      simp only at hInv; simp only
       rcases hInv with ⟨hInv_1b_1, hInv_1b_2⟩
       match maxVBal, maxVal with
       | some rbal, some rval =>
-        simp only at hInv_1b_1; simp [-Send]
-        constructor
+        simp only at hInv_1b_1; simp only
+        apply And.intro ?h_no_vote ?h_inv_1b_2
         · exact votedForIn_monotonic sent sent' h_mono hInv_1b_1
-        · have oneb_inv_2_sent' := oneb_inv_2_stable_if_no_twob_added
-                                    sent sent' h_mono h_no_2b_added hInv_1b_2
-          intro b' hle hlt
-          simpa [not_exists] using (oneb_inv_2_sent' b' ⟨hle, hlt⟩)
+        · exact oneb_inv_2_stable_if_no_twob_added sent sent' h_mono h_no_2b_added hInv_1b_2
       | none, none =>
-        simp only at hInv_1b_1; simp [-Send]
+        simp only at hInv_1b_1; simp only
         simpa [votedForIn_same_if_no_2b_send sent sent' h1a] using hInv_1b_2
       | some rbal, none | none, some rval =>
         simp at hInv_1b_1
@@ -225,7 +222,7 @@ lemma msginv_is_inductive_phase1b
     | twob rbal rval racc =>
       have h_exists_b_v_with_same_acceptor := mem_max_prop_is_2b sent h_r_in_sent
       have h_r_has_same_acc : a = racc := by simp_all
-      simp [-Send] at hmatch
+      simp only at hmatch
       rcases hmatch with ⟨h_no_2a_with_same_ballot, h_send⟩
       have h_no_2b_added : ∀ m ∈ sent' \ sent, ¬ (is2b m) := by simp_all
       unfold MsgInv at *
@@ -276,13 +273,10 @@ lemma msginv_is_inductive_phase1b
                    ⟨hInv_1b_1, hInv_1b_2⟩
           match maxVBal, maxVal with
           | some rbal, some rval =>
-            simp only at hInv_1b_1; simp [-Send]
+            simp only at hInv_1b_1; simp only
             constructor
             · exact votedForIn_monotonic sent sent' h_mono hInv_1b_1
-            · have oneb_inv_2_sent' := oneb_inv_2_stable_if_no_twob_added
-                                        sent sent' h_mono h_no_2b_added hInv_1b_2
-              intro b' hle hlt
-              simpa [not_exists] using (oneb_inv_2_sent' b' ⟨hle, hlt⟩)
+            · exact oneb_inv_2_stable_if_no_twob_added sent sent' h_mono h_no_2b_added hInv_1b_2
           | none, none =>
             simp only at hInv_1b_1; simp only [true_and]
             simpa [votedForIn_same_if_no_2b_send sent sent' h_send] using hInv_1b_2
@@ -313,6 +307,7 @@ lemma msginv_is_inductive_phase2a
   have ⟨h_no_prev_2a_with_same_ballot,
         ⟨v, Q, S, h_Q_in_quorums, h_S_subsetOf_1b_msgs,h_all_acc_in_Q_sent_1b,
         h_all_acc_none_voted_or_some_voted, h_sent_2a_msg⟩⟩ := h2a
+  have h_no_2b_added : ∀ m ∈ sent' \ sent, ¬ is2b m := by simp_all
   have h_votedForIn_same : ∀ a v b, VotedForIn sent a v b ↔ VotedForIn sent' a v b := by
     intro a v b
     unfold VotedForIn
@@ -349,13 +344,10 @@ lemma msginv_is_inductive_phase2a
               simp at hm1_match
               specialize h_none_voted m1 hm1S
               simp [m1] at h_none_voted
-              have h_target := hInv
-              specialize h_target m1 h_m1_in_sent
-              simp [m1] at h_target
-              have h_target := h_target.right
-              specialize h_target b2
-              simp [h_none_voted, h_b2_less_than_b, bal1_eq, hm1_match] at h_target
-              exact h_target
+              have hInv_1b := hInv m1 h_m1_in_sent
+              simp [m1] at hInv_1b
+              simpa [h_none_voted, h_b2_less_than_b, bal1_eq, hm1_match] using
+                hInv_1b.right b2
             | _ => simp at hm1_match;
           -- showing there is some 1b message with greater ballot
           · cases m1 with
@@ -510,19 +502,15 @@ lemma msginv_is_inductive_phase2a
   · simp [h_m1_in_sent] at h_m1_in_sent'
     cases hm1 : m1 with
       all_goals
-      simp [-Send]
+      try simp only
       try specialize hInv m1 h_m1_in_sent
       try simp [hm1] at hInv
     | oneb b1 maxVBal maxVal a1 =>
       match maxVBal, maxVal with
       | some maxVBal, some maxVal =>
-        constructor
+        apply And.intro ?h_no_vote ?h_inv_1b_2
         · exact votedForIn_monotonic sent sent' h_mono hInv.left
-        · unfold VotedForIn at *
-          intro b' hb'_lower hb'_upper x
-          have h_not_voted := hInv.right
-          specialize h_not_voted b' hb'_lower hb'_upper x
-          simpa [h_sent_2a_msg] using h_not_voted
+        · simpa [h_sent_2a_msg, VotedForIn] using hInv.right
       | none, none => simp; simpa [h_votedForIn_same] using hInv.right
       | some maxVBal, none | none, some maxVal =>
         simp only at *
