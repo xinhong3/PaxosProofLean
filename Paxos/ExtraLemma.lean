@@ -48,7 +48,7 @@ lemma option.some_succ_le_some_of_some_le_and_lt {n m k : Ballot}
 
 /-- The messages in `max_prop` are of type `twob`. -/
 @[simp]
-theorem mem_max_prop_is_2b {m : Message} {a : Acceptor} :
+lemma mem_max_prop_is_2b {m : Message} {a : Acceptor} :
     m ∈ max_prop sent a →
       ∃ (b : Option Ballot) (v : Option Value), m = Message.twob b v a := by
   dsimp [max_prop] at *
@@ -63,7 +63,7 @@ theorem mem_max_prop_is_2b {m : Message} {a : Acceptor} :
 
 /-- If `max_prop` is not empty, then the acceptor must has voted for the value. -/
 @[simp]
-theorem max_prop_not_empty_implies_voted_for {a : Acceptor} {b : Ballot} {v : Value} :
+lemma max_prop_not_empty_implies_voted_for {a : Acceptor} {b : Ballot} {v : Value} :
     Message.twob b (some v) a ∈ max_prop sent a →
       VotedForIn sent a v b := by
   intro h_mem
@@ -92,10 +92,10 @@ lemma max_prop_empty_ballot_iff_empty_value {a : Acceptor} {m : Message}
 
 /-- The acceptor could not have voted for a ballot greater than the one in `max_prop` -/
 @[simp]
-theorem max_prop_implies_not_voted_for_greater_ballots
+lemma max_prop_implies_not_voted_for_greater_ballots
     {a : Acceptor} {b : Ballot} {v: Value} :
     Message.twob b (some v) a ∈ max_prop sent a →
-      ∀ b' v', b' > b → ¬ VotedForIn sent a v' b' := by
+      ∀ b', b' ≥ b+1 → ¬∃ v, VotedForIn sent a v b' := by
   intro h_mem
   unfold max_prop at h_mem
   simp at h_mem
@@ -117,7 +117,7 @@ theorem max_prop_implies_not_voted_for_greater_ballots
 voted in any previous ballots. Used in proving the case when both `rbal` and `rval` are
 empty in the proof of `Phase1b`. -/
 @[simp]
-theorem max_prop_empty_implies_not_voted_in_prev_ballots {a: Acceptor}
+lemma max_prop_empty_implies_not_voted_in_prev_ballots {a: Acceptor}
     (hm: Message.twob none none a ∈ max_prop sent a) :
     ∀ b, ∀ (v: Value), ¬ VotedForIn sent a v b := by
   intro b' hb'_le h_voted
@@ -134,7 +134,6 @@ theorem max_prop_empty_implies_not_voted_in_prev_ballots {a: Acceptor}
     simp [hm_two_b] at h_nonempty
     rw [←hm_two_b] at h_nonempty
     exact h_nonempty hm_sent
-
 
 -- The following 5 lemmas are used to show that `sent` grows monotonically with `Next`.
 
@@ -183,20 +182,18 @@ lemma next_imp_mono_sent
   · exact phase2b_imp_mono_sent sent sent' hPhase2b
 
 /-- The monotonicity of existantial quantifier describe in the TLAPS proof. -/
-theorem exists_mem_of_subset {s t : Set Message} {P : Message → Prop}
+lemma exists_mem_of_subset {s t : Set Message} {P : Message → Prop}
     (hsub : s ⊆ t) (hex : ∃ x ∈ s, P x) : ∃ x ∈ t, P x := by
   rcases hex with ⟨x, hx_s, hx_P⟩
   exact ⟨x, hsub hx_s, hx_P⟩
 
 /-- If `sent` is a subset of `sent'`, then voted in the former implies voted in the latter.
 Used in the proof of `SafeAtStable`.-/
-@[simp]
 lemma votedForIn_monotonic
     (h1: sent ⊆ sent') : VotedForIn sent a v b → VotedForIn sent' a v b := by
   exact exists_mem_of_subset h1
 
 /-- If no 2b message is added, then the value of `VotedForIn` stays the same. -/
-@[simp]
 lemma votedForIn_same_if_no_2b_added
     (h_mono: sent ⊆ sent')
     (hm: ∀ m ∈ sent' \ sent, ¬ is2b m) :
@@ -210,6 +207,15 @@ lemma votedForIn_same_if_no_2b_added
     · exact ⟨m, h_m_in_sent, hmatch⟩
     · simp [*] at *
       exact False.elim (hm (Message.twob (some b) (some v) a) hm_sent' h_m_in_sent trivial)
+
+/-- If no 2b message is added to `sent`, and the acceptor has not voted in a previous
+ballot. Then it still has not voted in that ballot in `sent'`. -/
+lemma votedForIn_same_if_no_2b_send
+    (hsend : sent' = Send m sent)
+    (hm : ¬ is2b m) : VotedForIn sent a v b ↔ VotedForIn sent' a v b := by
+  have h_no_2b_added : ∀ m' ∈ sent' \ sent, ¬ is2b m' := by simp_all
+  have h_mono : sent ⊆ sent' := send_monotonic hsend
+  exact votedForIn_same_if_no_2b_added sent sent' h_mono h_no_2b_added
 
 /-- If no 1b or 2b message is added, then the second invariant for 2b is stable. -/
 lemma oneb_inv_2_stable_if_no_twob_added {maxVBal: Option Ballot} {b: Ballot} {a: Acceptor}
@@ -227,22 +233,7 @@ lemma oneb_inv_2_stable_if_no_twob_added {maxVBal: Option Ballot} {b: Ballot} {a
           ((votedForIn_same_if_no_2b_added sent sent' h_mono h_no_2b_added).mpr
           h_voted_in_sent')
 
-/-- If no 2b message is added to `sent`, and the acceptor has not voted in a previous
-ballot. Then it still has not voted in that ballot in `sent'`. -/
-@[simp]
-lemma no_votes_stable_if_no_2b_added {a: Acceptor} {b: Ballot} {m: Message}
-    (hnv : ∀ v, ¬ VotedForIn sent a v b)
-    (hsend : sent' = Send m sent)
-    (hm : ¬ is2b m) : ∀ v, ¬ VotedForIn sent' a v b := by
-  have h_no_2b_added : ∀ m' ∈ sent' \ sent, ¬ is2b m' := by simp_all
-  have h_mono : sent ⊆ sent' := send_monotonic hsend
-  intro v h_voted_in_sent'; specialize hnv v
-  have h_votedForIn_same :=
-    @votedForIn_same_if_no_2b_added sent sent' a v b h_mono h_no_2b_added
-  simp [h_votedForIn_same, h_voted_in_sent'] at hnv
-
 /-- If no 1b or 2b message is added, then `WontVoteIn` is stable. -/
-@[simp]
 lemma wontVoteIn_stable_if_no_1b2b_added
     (h_mono: sent ⊆ sent')
     (hm: ∀ m ∈ sent' \ sent, ¬ (is1b m ∨ is2b m)) :
@@ -256,28 +247,5 @@ lemma wontVoteIn_stable_if_no_1b2b_added
     simp [@votedForIn_same_if_no_2b_added sent sent' a v b h_mono h_no_2b_added,
           h_voted_in_sent'] at h_no_vote
   · exact exists_mem_of_subset h_mono h_exists_greater_ballot
-
-/-- If no 1b or 2b message is added, then `SafeAt` is stable. -/
-@[simp]
-lemma safeAt_stable_if_no_1b2b_added
-    (h_mono: sent ⊆ sent')
-    (hm: ∀ m ∈ sent' \ sent, ¬ (is1b m ∨ is2b m)) :
-    SafeAt sent Quorums v b → SafeAt sent' Quorums v b := by
-  unfold SafeAt
-  intro h_safeAt_sent
-  intro b2 h_b2_lt_b
-  rcases h_safeAt_sent b2 h_b2_lt_b with ⟨Q, hQ_in, h_voted_or_wontVote⟩
-  use Q
-  constructor
-  · exact hQ_in
-  · intro a ha_in_Q
-    specialize h_voted_or_wontVote a ha_in_Q
-    cases h_voted_or_wontVote with
-    | inl h_voted =>
-      apply Or.inl
-      exact (votedForIn_monotonic sent sent' h_mono h_voted)
-    | inr h_wontVote =>
-      apply Or.inr
-      exact wontVoteIn_stable_if_no_1b2b_added sent sent' h_mono hm h_wontVote
 
 end Paxos.ExtraLemma
