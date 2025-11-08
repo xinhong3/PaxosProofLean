@@ -314,32 +314,32 @@ lemma msginv_is_inductive_phase2a
     (h2a: Phase2a Quorums sent sent' b) : MsgInv sent' Quorums := by
   have h2a_copy := h2a
   unfold Phase2a at h2a
-  rcases h2a with ⟨h_no_prev_2a_msg, ⟨v, Q, S, h_Q_in_quorums, h_S_set_of_oneb,
-                                    h_all_acc_in_Q_sent_oneb,
-                                    h_all_not_voted_or_some_voted,
-                                    h2a⟩⟩
-  have h_mono : sent ⊆ sent' := by exact send_monotonic h2a
+  rcases h2a with ⟨h_no_prev_2a_with_same_ballot, ⟨v, Q, S, h_Q_in_quorums, h_S_subsetOf_1b_msgs,
+                                    h_all_acc_in_Q_sent_1b,
+                                    h_all_acc_none_voted_or_some_voted,
+                                    h_sent_2a_msg⟩⟩
+  have h_mono : sent ⊆ sent' := by exact send_monotonic h_sent_2a_msg
   have h_votedForIn_same : ∀ a v b, VotedForIn sent a v b ↔ VotedForIn sent' a v b := by
     intro a v b
     unfold VotedForIn
-    simp [h2a]
+    simp [h_sent_2a_msg]
   unfold MsgInv; unfold MsgInv at hInv
-  intro m' hm_sent'
-  by_cases h_m_eq_t2a : m' = Message.twoa b v
-  · simp [h_m_eq_t2a]
+  intro m1 h_m1_in_sent'; rw [h_sent_2a_msg] at h_m1_in_sent'
+  rcases Or.symm h_m1_in_sent' with (rfl | h_m1_in_sent)
+  · simp
     constructor
     -- ⊢ SafeAt sent' Quorums v b
     -- We prove this by showing SafeAt sent Quorums v b and use SafeAtStable
     · have h_safe_at_prev : SafeAt sent Quorums v b := by
-        cases' h_all_not_voted_or_some_voted with h_none_voted h_some_voted
+        cases' h_all_acc_none_voted_or_some_voted with h_none_voted h_some_voted
         -- first case: no acceptors in S has voted in the past (`maxVBal = none`)
         · unfold SafeAt
           intro b2 h_b2_less_than_b
-          use Q; simp [h_Q_in_quorums]
+          use Q, h_Q_in_quorums
           -- ⊢ ∀ a ∈ Q, VotedForIn sent a v b2 ∨ WontVoteIn sent a b2
           intro a haQ
           right       -- only need to show WontVoteIn sent a b2 (since none voted)
-          have ⟨m1, hm1S, hm1_match⟩ := h_all_acc_in_Q_sent_oneb a haQ
+          have ⟨m1, hm1S, hm1_match⟩ := h_all_acc_in_Q_sent_1b a haQ
           unfold WontVoteIn
           constructor
           -- ⊢ ∀ (v : Value), ¬VotedForIn sent a v b2
@@ -347,9 +347,9 @@ lemma msginv_is_inductive_phase2a
             | oneb bal1 maxVBal1 maxVal1 acc1 =>
               let m1 := Message.oneb bal1 maxVBal1 maxVal1 acc1
               have h_m1_in_sent : m1 ∈ sent := by
-                exact Set.mem_of_mem_inter_left (h_S_set_of_oneb hm1S)
+                exact Set.mem_of_mem_inter_left (h_S_subsetOf_1b_msgs hm1S)
               have bal1_eq : bal1 = b := by
-                rcases h_S_set_of_oneb hm1S with ⟨_, h_match_m1_eq_b⟩
+                rcases h_S_subsetOf_1b_msgs hm1S with ⟨_, h_match_m1_eq_b⟩
                 simp [h_match_m1_eq_b]
               simp at hm1_match
               specialize h_none_voted m1 hm1S
@@ -367,65 +367,58 @@ lemma msginv_is_inductive_phase2a
             | oneb bal1 maxVBal1 maxVal1 acc1 =>        -- we only care about 1b
               let m1 := Message.oneb bal1 maxVBal1 maxVal1 acc1
               have h_m1_in_sent : m1 ∈ sent := by
-                exact Set.mem_of_mem_inter_left (h_S_set_of_oneb hm1S)
+                exact Set.mem_of_mem_inter_left (h_S_subsetOf_1b_msgs hm1S)
               have bal1_eq : bal1 = b := by
-                rcases h_S_set_of_oneb hm1S with ⟨_, h_match_m1_eq_b⟩
+                rcases h_S_subsetOf_1b_msgs hm1S with ⟨_, h_match_m1_eq_b⟩
                 simp [h_match_m1_eq_b]
-              use m1, h_m1_in_sent; simp [m1]
-              simp [hm1_match, bal1_eq, h_b2_less_than_b]
+              use m1, h_m1_in_sent
+              simp [m1, hm1_match, bal1_eq, h_b2_less_than_b]
             | _ => simp at hm1_match;  -- the rest can be done by simp
         -- second case: some acceptor has voted in the past (`maxVBal ≠ none`)
         · -- ⊢ SafeAt sent Quorums v b
           unfold SafeAt
           intro b2 h_b2_less_than_b
           rcases h_some_voted with
-            ⟨c,
-              h_c_greater_than_zero,
-              h_c_less_than_b,
-              ⟨h_all_messgae_in_S_less_than_c,
-              h_some_message_in_S_equals_C⟩⟩
+            ⟨c, h_c_gte_zero, h_c_lt_b, ⟨h_all_1b_has_ballot_lt_c, h_some_1b_has_ballot_c⟩⟩
           by_cases h_b2_less_than_c : b2 < c
           -- ⊢ ∃ Q ∈ Quorums, ∀ a ∈ Q, VotedForIn sent a v b2 ∨ WontVoteIn sent a b2
-          · rcases h_some_message_in_S_equals_C with
-              ⟨m_with_ballot_c, h_m_c_in_S, h_m_c_match⟩
-            cases m_with_ballot_c with
+          · rcases h_some_1b_has_ballot_c with
+              ⟨m1b_ballot_c, h_m1b_in_S, h_m1b_match⟩
+            cases m1b_ballot_c with
             | oneb bal_c mc_vbal mc_val mc_acc =>
               match mc_vbal, mc_val with
               | some mc_vbal, some mc_val =>
                 let mc := Message.oneb bal_c mc_vbal mc_val mc_acc
-                have ⟨mc_in_sent, _⟩ := h_S_set_of_oneb h_m_c_in_S
+                have ⟨mc_in_sent, _⟩ := h_S_subsetOf_1b_msgs h_m1b_in_S
                 have hInv_2b := hInv mc mc_in_sent
-                simp at h_m_c_match
-                simp [mc, h_m_c_match] at hInv_2b
+                simp at h_m1b_match
+                simp [mc, h_m1b_match] at hInv_2b
                 have h_safe_at_c : SafeAt sent Quorums mc_val mc_vbal := by
                   have h_voted_acc : VotedForIn sent mc_acc mc_val mc_vbal := by
-                    simp [h_m_c_match, hInv_2b.left]
+                    simp [h_m1b_match, hInv_2b.left]
                   exact VotedInv sent Quorums hInv mc_acc mc_val mc_vbal h_voted_acc
                 unfold SafeAt at h_safe_at_c
-                rw [h_m_c_match.left, h_m_c_match.right] at h_safe_at_c
+                rw [h_m1b_match.left, h_m1b_match.right] at h_safe_at_c
                 specialize h_safe_at_c b2 h_b2_less_than_c
                 simp [h_safe_at_c]
-              | none, some mc_val => simp at h_m_c_match;
-              | some mc_vbal, none => simp at h_m_c_match;
-              | none, none => simp at h_m_c_match;
-            | _ => simp at h_m_c_match;
+              | none, some mc_val => simp at h_m1b_match;
+              | some mc_vbal, none => simp at h_m1b_match;
+              | none, none => simp at h_m1b_match;
+            | _ => simp at h_m1b_match;
           -- ⊢ ∃ Q ∈ Quorums, ∀ a ∈ Q, VotedForIn sent a v b2 ∨ WontVoteIn sent a b2
+          use Q, h_Q_in_quorums
+          intro a haQ
           · by_cases h_b2_eq_c : b2 = c
-            · rcases h_some_message_in_S_equals_C with
-                ⟨m_with_ballot_c, h_m_c_in_S, h_m_c_match⟩
-              cases m_with_ballot_c with
+            · rcases h_some_1b_has_ballot_c with ⟨m1b_ballot_c, h_m1b_in_S, h_m1b_match⟩
+              cases m1b_ballot_c with
               | oneb bal_c mc_vbal mc_val mc_acc =>
                 match mc_vbal, mc_val with
                 | some mc_vbal, some mc_val =>
                   let mc := Message.oneb bal_c mc_vbal mc_val mc_acc
-                  have h_vbal_eq_c : mc_vbal = c := by
-                    simp at h_m_c_match
-                    exact h_m_c_match.left
-                  have h_mc_val_eq_v : mc_val = v := by
-                    simp at h_m_c_match
-                    simp [h_m_c_match.right]
+                  simp at h_m1b_match
+                  have ⟨h_vbal_eq_c, h_mc_val_eq_v⟩ := h_m1b_match
                   have h_voted_acc_c : VotedForIn sent mc_acc mc_val mc_vbal := by
-                    have ⟨mc_in_sent, _⟩ := h_S_set_of_oneb h_m_c_in_S
+                    have ⟨mc_in_sent, _⟩ := h_S_subsetOf_1b_msgs h_m1b_in_S
                     have h_inv_mc := hInv mc mc_in_sent
                     simp [mc] at h_inv_mc
                     exact h_inv_mc.left
@@ -434,16 +427,12 @@ lemma msginv_is_inductive_phase2a
                       ∀ q ∈ Q, ∀ (w: Value), VotedForIn sent q w c → w = v := by
                     intro q h_q_in_Q w h_voted
                     exact VotedOnce sent Quorums hInv h_voted h_voted_acc_c
-                  use Q; simp [h_Q_in_quorums]
-                  intro a haQ
                   -- the following shows that either a has voted for v in b2,
                   --  or it won't vote in b2. Note that c = b2 in this case.
                   by_cases h_a_voted_in_c : VotedForIn sent a v c
-                    -- if a has voted for v in c, we are done
-                  · left
+                  · left  -- if a has voted for v in c, we are done
                     simp [h_b2_eq_c, h_a_voted_in_c]
-                    -- otherwise, we show that it won't vote in c
-                  · right
+                  · right -- otherwise, we show that it won't vote in c
                     unfold WontVoteIn
                     constructor
                     · intro w h_voted
@@ -451,162 +440,135 @@ lemma msginv_is_inductive_phase2a
                       have h_voted_eq_v := h_all_voted_in_c_for_v a haQ w h_voted
                       rw [h_voted_eq_v] at h_voted
                       exact h_a_voted_in_c h_voted
-                    · specialize h_all_acc_in_Q_sent_oneb a haQ
-                      obtain ⟨m2, hm2S, hm2_match⟩ := h_all_acc_in_Q_sent_oneb
-                      cases m2 with
+                    · specialize h_all_acc_in_Q_sent_1b a haQ
+                      obtain ⟨m2_1b, h_m2_in_S, hm2_match⟩ := h_all_acc_in_Q_sent_1b
+                      cases m2_1b with
                       | oneb bal2 maxVBal2 maxVal2 acc2 =>
                         simp at hm2_match
-                        have h_m2_is_oneb := h_S_set_of_oneb hm2S
+                        have h_m2_is_oneb := h_S_subsetOf_1b_msgs h_m2_in_S
                         simp at h_m2_is_oneb
                         have h_m2_in_sent := h_m2_is_oneb.left
-                        use Message.oneb bal2 maxVBal2 maxVal2 acc2
-                        simp only [h_m2_in_sent]
+                        use Message.oneb bal2 maxVBal2 maxVal2 acc2, h_m2_in_sent
                         simp [h_m2_is_oneb.2, hm2_match, h_b2_less_than_b]
                       | _ => simp at hm2_match;
-              | _ => simp at h_m_c_match;
+              | _ => simp at h_m1b_match;
             · have h_b2_greater_than_c : c < b2 := by
                 have h_total := lt_trichotomy c b2
                 rcases h_total with (h_total_left | h_total_mid | h_total_r)
                 · exact h_total_left
                 · simp [h_total_mid] at h_b2_eq_c
                 · simp [h_total_r] at h_b2_less_than_c
-              have h_safe_at_c : SafeAt sent Quorums v c := by
-                obtain ⟨m1, hm1S, hm1_match⟩ := h_some_message_in_S_equals_C
-                cases m1 with
-                | oneb bal1 maxVBal1 maxVal1 acc1 =>
-                  simp at hm1_match
-                  have h_acc_voted : VotedForIn sent acc1 v c := by
-                    have h_m1_in_sent := (h_S_set_of_oneb hm1S).left
-                    specialize hInv (Message.oneb bal1 maxVBal1 maxVal1 acc1) h_m1_in_sent
-                    simp at hInv
-                    rw [hm1_match.left, hm1_match.right] at hInv
-                    simp at hInv
-                    simp [hInv.left]
-                  exact VotedInv sent Quorums hInv acc1 v c h_acc_voted
-                | _ => simp at hm1_match;
-              use Q; simp [h_Q_in_quorums]
-              intro a haQ
               right
+              specialize h_all_acc_in_Q_sent_1b a haQ
+              obtain ⟨m2_1b, h_m2_in_S, hm2_match⟩ := h_all_acc_in_Q_sent_1b
               constructor
-              · specialize h_all_acc_in_Q_sent_oneb a haQ
-                obtain ⟨m2, hm2S, hm2_match⟩ := h_all_acc_in_Q_sent_oneb
-                have hm2_sent := (h_S_set_of_oneb hm2S).1
-                cases h_case_m2: m2 with
+              · have hm2_sent := (h_S_subsetOf_1b_msgs h_m2_in_S).1
+                cases h_case_m2: m2_1b with
                 | oneb bal2 maxVBal2 maxVal2 acc2 =>
                   have acc_eq : acc2 = a := by simpa [h_case_m2] using hm2_match
-                  specialize hInv m2 hm2_sent
+                  specialize hInv m2_1b hm2_sent
                   simp [h_case_m2] at hInv
                   rcases hInv with ⟨_, h_lim⟩
                   have no_ex : ∀ x, ¬VotedForIn sent acc2 x b2 := by
                     specialize h_lim b2
-                    specialize h_all_messgae_in_S_less_than_c m2 hm2S
-                    simp [h_case_m2] at h_all_messgae_in_S_less_than_c
+                    specialize h_all_1b_has_ballot_lt_c m2_1b h_m2_in_S
+                    simp [h_case_m2] at h_all_1b_has_ballot_lt_c
                     have h_lower : maxVBal2 + (1 : Nat) ≤ some b2 := by
                       cases maxVBal2 with
                       | none => simp
                       | some maxVBal2 =>
                         exact option.some_succ_le_some_of_some_le_and_lt
-                          h_all_messgae_in_S_less_than_c
+                          h_all_1b_has_ballot_lt_c
                           h_b2_greater_than_c
                     have h_upper : b2 < bal2 := by
-                      rcases h_S_set_of_oneb hm2S with ⟨_, h_m2_match_bal_eq_b⟩
+                      rcases h_S_subsetOf_1b_msgs h_m2_in_S with ⟨_, h_m2_match_bal_eq_b⟩
                       simp [h_case_m2] at h_m2_match_bal_eq_b
                       simp only [h_m2_match_bal_eq_b, h_b2_less_than_b]
                     exact (h_lim h_lower h_upper)
                   rw [acc_eq] at no_ex; exact no_ex
                 | _ => simp [h_case_m2] at hm2_match;
-              · specialize h_all_acc_in_Q_sent_oneb a haQ
-                obtain ⟨m2, hm2S, hm2_match⟩ := h_all_acc_in_Q_sent_oneb
-                cases m2 with
+              · cases m2_1b with
                 | oneb bal2 maxVBal2 maxVal2 acc2 =>
                   simp at hm2_match
-                  have h_m2_is_oneb := h_S_set_of_oneb hm2S
+                  have h_m2_is_oneb := h_S_subsetOf_1b_msgs h_m2_in_S
                   simp at h_m2_is_oneb
                   have h_m2_in_sent := h_m2_is_oneb.left
-                  use Message.oneb bal2 maxVBal2 maxVal2 acc2
-                  simp only [h_m2_in_sent]
+                  use Message.oneb bal2 maxVBal2 maxVal2 acc2, h_m2_in_sent
                   simp [h_m2_is_oneb.2, hm2_match, h_b2_less_than_b]
-                | _ => exfalso; simp at hm2_match;
+                | _ => simp at hm2_match;
       exact safeAt_is_inductive_phase2a sent sent' Quorums h2a_copy h_safe_at_prev
     -- unique proposal
     · intro m2 h_m2_in_sent'
       by_cases h_m2_in_sent : m2 ∈ sent
       · cases h_m2 : m2 with
         | twoa bal2 val2 =>
-          simp
-          intro h_bal2_eq_b
-          have ex : ∃ m ∈ sent, match m with
-            | Message.twoa b' val => b' = b
-            | _                   => False :=
+          simp; intro h_bal2_eq_b
+          have h_exists_prev_2a_with_same_ballot : ∃ m ∈ sent, match m with
+                                             | Message.twoa b' _ => b' = b
+                                             | _                 => False :=
             ⟨m2, h_m2_in_sent, by simp [h_m2, h_bal2_eq_b]⟩
-          exact False.elim (h_no_prev_2a_msg ex)
+          exact False.elim (h_no_prev_2a_with_same_ballot h_exists_prev_2a_with_same_ballot)
         | _ => simp
-      · have h_m2_eq_t2a : m2 = Message.twoa b v := by
-          unfold Send at h2a
-          simp [h2a] at h_m2_in_sent'
-          simp [h_m2_in_sent] at h_m2_in_sent'; exact h_m2_in_sent'
-        simp [h_m2_eq_t2a]
-  · simp [h2a, h_m_eq_t2a] at hm_sent'
-    cases hm' : m' with
+      · have h_m2_eq_2a : m2 = Message.twoa b v := by simp_all
+        simp [h_m2_eq_2a]
+  · simp [h_m1_in_sent] at h_m1_in_sent'
+    cases hm1 : m1 with
     | onea b1 => simp
     | oneb b1 maxVBal maxVal a1 =>
       simp at hInv; simp [-Send]
       match maxVBal, maxVal with
+      | some maxVBal, some maxVal =>
+        simp [-Send]; specialize hInv m1 h_m1_in_sent; simp [hm1] at hInv
+        constructor
+        · exact votedForIn_monotonic sent sent' h_mono hInv.left
+        · intro b' hb'_lower hb'_upper x
+          unfold VotedForIn at *
+          have h_not_voted := hInv.right
+          specialize h_not_voted b' hb'_lower hb'_upper x
+          simpa [h_sent_2a_msg] using h_not_voted
       | none, none =>
         simp
-        specialize hInv m' hm_sent'; simp [hm'] at hInv;
+        specialize hInv m1 h_m1_in_sent; simp [hm1] at hInv;
         intro b' a x
         exact (iff_false_left (hInv b' a x)).mp (h_votedForIn_same a1 x b')
       | some maxVBal, none | none, some maxVal =>
         simp
-        specialize hInv m' hm_sent'; simp [hm'] at hInv
-      | some maxVBal, some maxVal =>
-        simp [-Send]; specialize hInv m' hm_sent'; simp [hm'] at hInv
-        constructor
-        · exact votedForIn_monotonic sent sent' h_mono hInv.left
-        · intro b' hb_lower hb_upper x
-          have h_not_voted := hInv.right
-          specialize h_not_voted b'
-          simp [hb_lower, hb_upper] at h_not_voted
-          specialize h_not_voted x
-          unfold VotedForIn at *
-          simpa [h2a] using h_not_voted
+        specialize hInv m1 h_m1_in_sent; simp [hm1] at hInv
     | twoa b1 v1 =>   -- For 2a message in sent
       simp at hInv; simp [-Send]
-      specialize hInv m' hm_sent'; simp [hm'] at hInv
+      specialize hInv m1 h_m1_in_sent; simp [hm1] at hInv
       apply And.intro
       · exact safeAt_is_inductive_phase2a sent sent' Quorums h2a_copy hInv.left
-      · have h_inv_right := hInv.right
+      · have h_inv_unique_prop := hInv.right
         intro m2 h_m2_in_sent'
-        specialize h_inv_right m2
+        specialize h_inv_unique_prop m2
         cases m2 with
         | twoa b1' v1' =>
           simp;
           intro h_same_ballot_b1_b1'
           simp [h_same_ballot_b1_b1']
           by_cases h_m2_in_sent : Message.twoa b1' v1' ∈ sent
-          · simp [h_m2_in_sent] at h_inv_right
-            simp [h_inv_right, h_same_ballot_b1_b1']
-          · unfold Send at h2a;
+          · simp [h_m2_in_sent] at h_inv_unique_prop
+            simp [h_inv_unique_prop, h_same_ballot_b1_b1']
+          · unfold Send at h_sent_2a_msg;
             have h_b1_eq_b_and_v1_eq_v : Message.twoa b1' v1' = Message.twoa b v := by
-              simp [h2a] at h_m2_in_sent'
+              simp [h_sent_2a_msg] at h_m2_in_sent'
               rcases h_m2_in_sent' with (h_eq | h1)
               · simp [h_eq]
               · exact False.elim (h_m2_in_sent h1)
             simp at h_b1_eq_b_and_v1_eq_v
             simp [*] at *
             exfalso
-            exact (h_no_prev_2a_msg
-                  (Message.twoa b1 v1) hm_sent' (id (Eq.symm h_same_ballot_b1_b1')))
+            exact (h_no_prev_2a_with_same_ballot
+                  (Message.twoa b1 v1) h_m1_in_sent (id (Eq.symm h_same_ballot_b1_b1')))
         | _ => simp;
     | twob b1 v1 a1 =>
       match b1, v1 with
-      | none, none | some b1, none | none, some v1 => simp;
       | some b1, some v1 =>
         simp
-        specialize hInv m' hm_sent'
-        simp [hm'] at hInv
+        specialize hInv m1 h_m1_in_sent; simp [hm1] at hInv
         exact h_mono hInv
+      | none, none | some b1, none | none, some v1 => simp;
 
 lemma msginv_is_inductive_phase2b
     (hInv: MsgInv sent Quorums)
@@ -654,9 +616,9 @@ lemma msginv_is_inductive_phase2b
         specialize hInv m1 h_m1_in_sent; simp [hm1] at hInv
         apply And.intro
         · exact safeAt_is_inductive_phase2b sent sent' Quorums h2b hInv.left
-        · have h_inv_right := hInv.right
+        · have h_inv_unique_prop := hInv.right
           intro m2 h_m2_in_sent'
-          specialize h_inv_right m2
+          specialize h_inv_unique_prop m2
           cases m2 <;> simp_all
       | twob b1 v1 a1 =>
         match b1, v1 with
