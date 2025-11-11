@@ -32,11 +32,11 @@ inductive Message where
   | twob (bal : Option Ballot) (val : Option Value) (acc : Acceptor)
 
 /- Quorums and QuorumAssumption. -/
-variable (Quorums: Set (Set Acceptor))
-axiom QuorumAssumption (h1: Q₁ ∈ Quorums) (h2: Q₂ ∈ Quorums): Q₁ ∩ Q₂ ≠ ∅
+variable (Quorums : Set (Set Acceptor))
+axiom QuorumAssumption (h1 : Q₁ ∈ Quorums) (h2 : Q₂ ∈ Quorums) : Q₁ ∩ Q₂ ≠ ∅
 
 /- History variable `sent`, and added primed variable to represent the next state. -/
-variable (sent sent': Set Message)
+variable (sent sent' : Set Message)
 
 -- `Send` and the phases are the same as in CL, except that we use pattern matching.
 
@@ -51,12 +51,12 @@ def Phase1a (b : Ballot) : Prop :=
 `twobs` is empty it returns a record with `bal` and `val` begin set to dummy values.
 Otherwise, it returns a set of `2b` messages. Here we always return a set of `2b` messages
 to ensure the type compatibility. -/
-def max_prop (a : Acceptor): Set Message :=
-  let twobs := {m ∈ sent | ∃ (b: Ballot) (v: Value), m = Message.twob b v a}
+def max_prop (a : Acceptor) : Set Message :=
+  let twobs := {m ∈ sent | ∃ (b : Ballot) (v : Value), m = Message.twob b v a}
   if twobs ≠ ∅ then
-      {m₁ ∈ twobs | ∀ m₂ ∈ twobs, match m₁, m₂ with
-                                  | Message.twob b₁ _ _, Message.twob b₂ _ _ => b₁ ≥ b₂
-                                  | _, _ => True}
+    {m₁ ∈ twobs | ∀ m₂ ∈ twobs, match m₁, m₂ with
+                                | Message.twob b₁ _ _, Message.twob b₂ _ _ => b₁ ≥ b₂
+                                | _, _ => True}
   else {Message.twob none none a}  -- return `none` for both `maxVBal` and `maxVal`.
 
 def Phase1b (a : Acceptor) : Prop :=
@@ -101,8 +101,8 @@ def Phase2b (a : Acceptor) : Prop :=
 
 def Init : Prop := sent = ∅
 
-def Next : Prop :=    (∃b, Phase1a sent sent' b ∨ Phase2a Quorums sent sent' b)
-                    ∨ (∃a, Phase1b sent sent' a ∨ Phase2b sent sent' a)
+def Next : Prop := (∃ b, Phase1a sent sent' b ∨ Phase2a Quorums sent sent' b)
+                    ∨ (∃ a, Phase1b sent sent' a ∨ Phase2b sent sent' a)
 
 /-- `Spec == Init /\ [][Next]_vars` in CL. We model the temporal formula using trace.
 It is named `PaxosSpec` to avoid name clashes with the `Spec` namespace.

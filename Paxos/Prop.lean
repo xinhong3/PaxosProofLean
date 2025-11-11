@@ -14,7 +14,7 @@ variable (Quorums : Set (Set Acceptor))
 def VotedForIn (a : Acceptor) (v : Value) (b : Ballot) : Prop :=
   ∃ m ∈ sent, m = Message.twob b v a
 
-def ChosenIn (v: Value) (b: Ballot) : Prop :=
+def ChosenIn (v : Value) (b : Ballot) : Prop :=
   ∃ Q ∈ Quorums, ∀ a ∈ Q, VotedForIn sent a v b
 
 def Chosen (v : Value) : Prop :=
@@ -26,7 +26,7 @@ def WontVoteIn (a : Acceptor) (b : Ballot) : Prop :=
   ∧ (∃ m ∈ sent, match m with
                  | Message.oneb b' _ _ a' => a' = a ∧ b' > b
                  | Message.twob b' _ a'   => a' = a ∧ b' > b
-                 | _                      => false)
+                 | _                      => False)
 
 /-- Depends on `1b` and `2b` messages. -/
 def SafeAt (v : Value) (b : Ballot) : Prop :=
@@ -42,14 +42,14 @@ def MsgInv : Prop :=
         (match maxVBal, maxVal with
          | some rbal, some rval         => VotedForIn sent a rval rbal
          | option_rbal, option_rval     => option_rbal = none ∧ option_rval = none) -- added
-      ∧ (∀ (b' : Ballot), (b' ≥ (maxVBal + (1: Nat)) ∧ (b' < b))
+      ∧ (∀ (b' : Ballot), (b' ≥ (maxVBal + (1 : Nat)) ∧ (b' < b))
           → ¬(∃ v : Value, VotedForIn sent a v b'))
-    | Message.twoa b v                 =>   (SafeAt sent Quorums v b)
-                                          ∧ (∀ m2 ∈ sent,
+    | Message.twoa b v                 =>  (SafeAt sent Quorums v b)
+                                         ∧ (∀ m2 ∈ sent,
                                               match m2 with
                                               | Message.twoa b' _ => (b' = b → m2 = m)
                                               | _                 => True)
-    | Message.twob (some b) (some v) _ =>   Message.twoa b v ∈ sent
+    | Message.twob (some b) (some v) _ =>  Message.twoa b v ∈ sent
     | _ => True
 
 def Agree : Prop :=
