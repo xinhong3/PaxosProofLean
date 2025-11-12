@@ -296,7 +296,7 @@ lemma msginv_is_inductive_phase2a
       unfold SafeAt
       intro b2 h_b2_less_than_b
       cases' h_all_acc_none_voted_or_some_voted with h_none_voted h_some_voted
-      -- The cases where no acceptors in Q voted.
+      -- case where no acceptors in Q voted.
       · use Q, h_Q_in_quorums
         intro a haQ
         refine Or.inr ?wontVoteIn_a_b2
@@ -312,7 +312,7 @@ lemma msginv_is_inductive_phase2a
             simpa [h_none_voted, h_b2_less_than_b, hm1_match] using hInv_1b.right b2
           · use Message.oneb b maxVBal1 maxVal1 acc1, h_m1S_in_sent
         | _ => simp [hm1] at hm1_match;
-      -- The cases where some acceptors in Q voted.
+      -- case where some acceptors in Q voted.
       · rcases h_some_voted with    -- `c` is the maximum ballot voted by acceptors in Q
           ⟨c, h_c_gte_zero, h_c_lt_b, ⟨h_all_1b_has_ballot_lte_c, h_some_1b_has_ballot_c⟩⟩
         -- For each case: `b2 < c`, `b2 = c`, `b2 > c`, show `SafeAt sent ...`
@@ -420,8 +420,7 @@ lemma msginv_is_inductive_phase2a
             ⟨m2, h_m2_in_sent, by simp [h_m2, h_bal2_eq_b]⟩
           exact False.elim (h_no_prev_2a_with_same_ballot h_exists_prev_2a_with_same_ballot)
         | _ => simp
-      · have h_m2_eq_2a : m2 = Message.twoa b v := by simp_all
-        simp [h_m2_eq_2a]
+      · simp_all
   -- `m1 ∈ sent`
   · simp [h_m1_in_sent] at h_m1_in_sent'
     cases hm1 : m1 with
