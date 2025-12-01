@@ -1,5 +1,0 @@
-goal: (!false) = true
-
-query:
-(assert (distinct (not false) true))
-(check-sat)

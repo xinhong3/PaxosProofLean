@@ -1,5 +1,0 @@
-goal: "a" ++ "b" = "ab"
-
-query:
-(assert (distinct (str.++ "a" "b") "ab"))
-(check-sat)

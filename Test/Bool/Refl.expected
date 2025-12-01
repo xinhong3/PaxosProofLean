@@ -1,6 +1,0 @@
-goal: (p == p) = true
-
-query:
-(declare-const p Bool)
-(assert (distinct (= p p) true))
-(check-sat)
